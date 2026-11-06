@@ -24,6 +24,11 @@ class Cliente extends Model
         return ['aceita_whatsapp' => 'boolean', 'nascimento' => 'date'];
     }
 
+    public function ordens(): HasMany
+    {
+        return $this->hasMany(OrdemServico::class)->orderByDesc('numero');
+    }
+
     public function veiculos(): HasMany
     {
         return $this->hasMany(Veiculo::class);

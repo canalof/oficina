@@ -6,6 +6,7 @@
             <p class="text-suave">{{ collect([$veiculo->cor, $veiculo->combustivel])->filter()->join(' · ') }}</p>
         </div>
         @can('veiculos.editar')<a href="{{ route('veiculos.edit', $veiculo) }}" class="btn">Editar</a>@endcan
+        @can('os.editar')<a href="{{ route('os.create', ['veiculo_id' => $veiculo->id]) }}" class="btn-primario">Abrir OS</a>@endcan
     </div>
 
     <div class="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
@@ -61,8 +62,12 @@
         </section>
     </div>
 
-    <section class="card card-corpo mt-6 text-[15px] text-suave">
-        Ordens de serviço, itens recusados, garantias e lembretes de revisão deste carro aparecem aqui no próximo módulo.
+    <section class="card mt-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-linha px-5 py-4">
+            <h2>Ordens de serviço</h2>
+            @can('os.editar')<a href="{{ route('os.create', ['veiculo_id' => $veiculo->id]) }}" class="btn-primario btn-sm">Abrir OS</a>@endcan
+        </div>
+        @include('os._historico', ['ordens' => $veiculo->ordens()->with('itens')->limit(30)->get()])
     </section>
 
     @can('veiculos.excluir')

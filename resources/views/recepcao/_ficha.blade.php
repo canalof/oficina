@@ -14,11 +14,21 @@
             <div><dt class="text-sm text-suave">Cadastrado em</dt><dd class="text-xl font-semibold">{{ $veiculo->created_at->format('d/m/Y') }}</dd></div>
             <div><dt class="text-sm text-suave">Valor FIPE</dt><dd class="text-xl font-semibold">{{ $veiculo->fipe_valor_centavos ? 'R$ '.number_format($veiculo->fipe_valor_centavos / 100, 0, ',', '.') : '—' }}</dd></div>
         </dl>
-        <div class="border-t border-linha px-5 py-4 text-sm text-suave">
-            Histórico de serviços, itens recusados e garantias aparecem aqui quando o módulo de ordens de serviço entrar.
-        </div>
+        @php($ordens = $veiculo->ordens()->with('itens')->limit(3)->get())
+        @php($aberta = $ordens->first(fn ($o) => $o->status->noPatio()))
+        @if ($ordens->isNotEmpty())
+            <div class="border-t border-linha">
+                <div class="px-5 pt-3 text-sm font-semibold text-suave">Últimas visitas</div>
+                @include('os._historico', ['ordens' => $ordens])
+            </div>
+        @endif
         <div class="flex flex-wrap gap-3 border-t border-linha px-5 py-4">
-            <a href="{{ route('veiculos.show', $veiculo) }}" class="btn-primario">Abrir ficha do veículo</a>
+            @if ($aberta)
+                <a href="{{ route('os.show', $aberta) }}" class="btn-sinal">Continuar OS {{ $aberta->numeroFormatado() }}</a>
+            @else
+                @can('os.editar')<a href="{{ route('os.create', ['veiculo_id' => $veiculo->id]) }}" class="btn-sinal">Abrir ordem de serviço</a>@endcan
+            @endif
+            <a href="{{ route('veiculos.show', $veiculo) }}" class="btn">Ficha do veículo</a>
             @can('veiculos.editar')<a href="{{ route('veiculos.edit', $veiculo) }}" class="btn">Atualizar km e dados</a>@endcan
         </div>
     </section>

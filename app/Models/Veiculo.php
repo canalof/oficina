@@ -36,6 +36,11 @@ class Veiculo extends Model
         return $this->belongsTo(Cliente::class);
     }
 
+    public function ordens(): HasMany
+    {
+        return $this->hasMany(OrdemServico::class)->orderByDesc('numero');
+    }
+
     public function donos(): HasMany
     {
         return $this->hasMany(VeiculoDono::class)->orderByDesc('inicio')->orderByDesc('id');

@@ -39,7 +39,7 @@
     :focus-visible { outline: 3px solid var(--color-sinal); outline-offset: 2px; }
     h1 { @apply text-2xl font-semibold tracking-tight; }
     h2 { @apply text-lg font-semibold; }
-    [x-cloak] { display: none !important; }
+    [x-cloak], [hidden] { display: none !important; }
 }
 
 @layer components {
@@ -67,9 +67,9 @@
     .rotulo { @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold; }
 
     /* Placa Mercosul */
-    .placa { @apply inline-flex flex-col overflow-hidden rounded-[6px] border-2 border-[#1b1b1b] bg-white text-[#1b1b1b] leading-none; }
+    .placa { @apply inline-flex shrink-0 flex-col overflow-hidden rounded-[6px] border-2 border-[#1b1b1b] bg-white text-[#1b1b1b] leading-none; }
     .placa-faixa { @apply flex items-center justify-between bg-placa px-1.5 text-white; font-family: var(--font-placa); font-weight: 600; letter-spacing: .12em; }
-    .placa-numero { @apply px-2 text-center; font-family: var(--font-placa); font-weight: 700; letter-spacing: .06em; }
+    .placa-numero { @apply whitespace-nowrap px-2 text-center; font-family: var(--font-placa); font-weight: 700; letter-spacing: .06em; }
     .placa-sm .placa-faixa { @apply h-[7px] text-[0px]; }
     .placa-sm .placa-numero { @apply px-1.5 py-[3px] text-[15px]; }
     .placa-md .placa-faixa { @apply h-3.5 text-[8px]; }

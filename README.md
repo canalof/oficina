@@ -6,14 +6,16 @@ Este repositório está sendo construído por módulos, um Pull Request por etap
 
 | Etapa | Conteúdo | Situação |
 |---|---|---|
-| 1. Base | Login, empresas, usuários e perfis, clientes, veículos, recepção pela placa com consulta automática | **este PR** |
-| 2. Ordem de serviço | Orçamento, aprovação pelo WhatsApp, checklist com fotos, OS, garantia | próximo |
-| 3. Estoque e compras | Produtos, aviso de estoque mínimo, entrada por XML da nota | |
+| 1. Base | Login, empresas, usuários e perfis, clientes, veículos, recepção pela placa com consulta automática | pronta |
+| 2. Ordem de serviço | Orçamento, aprovação pelo WhatsApp, checklist com fotos, OS, garantia | pronta |
+| 3. Estoque e compras | Produtos, aviso de estoque mínimo, entrada por XML da nota | próxima |
 | 4. Caixa e financeiro | Caixa do dia, contas a pagar e receber, comissões | |
 | 5. Notas fiscais | NF-e, NFC-e, NFS-e (via emissor homologado) | |
 | 6. Agenda e lembretes | Agendamento, lembrete de revisão por km/tempo | |
 
-## O que já funciona (etapa 1)
+## O que já funciona
+
+### Etapa 1: base
 
 - **Várias oficinas no mesmo sistema.** Cada empresa só enxerga os próprios dados; isso é garantido no banco por um filtro automático (`empresa_id`), não só na tela.
 - **Login e perfis**: dono, gerente, consultor, mecânico, caixa, estoquista. Cada perfil tem suas permissões (ex.: mecânico não cadastra cliente nem gasta consulta de placa).
@@ -28,6 +30,21 @@ Este repositório está sendo construído por módulos, um Pull Request por etap
 - **Auditoria**: toda criação, alteração e exclusão fica registrada com quem fez, quando e o que mudou.
 - **Painel**: números do mês e gasto com consulta de placa.
 - **Celular**: todas as telas funcionam no celular.
+
+### Etapa 2: ordem de serviço
+
+- **Abrir OS** direto da recepção pela placa, com km, nível de combustível, relato do cliente, previsão de entrega, mecânico e checklist de entrada (15 itens: OK, avaria ou não tem).
+- **Orçamento**: serviços do catálogo (preço padrão) ou escritos à mão, peças, quantidade, desconto.
+- **Aprovação pelo WhatsApp**: um botão abre o WhatsApp com a mensagem e o link do orçamento. O cliente abre no celular, sem senha, vê fotos e itens, marca o que autoriza e confirma com o nome. Fica registrado quem aprovou, quando e de qual IP.
+- **Aprovação no balcão ou por telefone**: a equipe marca os itens aprovados na própria OS.
+- **Itens adicionais**: o mecânico achou outro problema durante o serviço? O item novo entra como "aguardando aprovação" e a OS não pode ser concluída até o cliente responder.
+- **Etapas**: Orçamento → Aguardando aprovação → Aprovada → Em serviço → Pronta → Entregue (ou Cancelada, com motivo). Não dá para pular etapas.
+- **Quadro do pátio**: todos os carros da oficina por etapa, com previsão de entrega em vermelho quando atrasa.
+- **Fotos** pelo celular (câmera direto), reduzidas automaticamente e visíveis só para a oficina e para o cliente pelo link.
+- **Impressão** da OS/orçamento em A4 com checklist, itens recusados, garantia e campo de assinatura.
+- **Garantia**: conta a partir da entrega; aparece no histórico do carro.
+- **Histórico** na ficha do veículo e do cliente, incluindo itens recusados (para oferecer de novo na próxima visita).
+- **Painel**: carros no pátio por etapa, atrasados e entregues no mês.
 
 ## Requisitos do servidor
 
@@ -95,6 +112,8 @@ O comando mostra a senha gerada. O dono entra, troca a senha e cadastra a equipe
 
 ### Fila e agendador
 
+As fotos das OS ficam em `storage/app/private/os/`. Inclua essa pasta no backup.
+
 Por enquanto não há tarefas agendadas. Quando as próximas etapas entrarem (lembretes, notas), será preciso adicionar ao cron:
 
 ```
@@ -103,7 +122,7 @@ Por enquanto não há tarefas agendadas. Quando as próximas etapas entrarem (le
 
 ## Ver online sem instalar nada (GitHub Codespaces)
 
-No GitHub, botão verde **Code** → aba **Codespaces** → **Create codespace on fase1-base** (ou `main`).
+No GitHub, botão verde **Code** → aba **Codespaces** → **Create codespace on fase2-os** (a versão mais nova; depois de aprovar os PRs, use `main`).
 Na primeira vez leva uns 5 minutos para preparar; depois o sistema abre sozinho numa aba nova.
 Login: **dono@demo.com.br / senha12345**. Se a aba não abrir, vá em **Ports** e clique no globo da porta 8000.
 
@@ -130,7 +149,7 @@ No modo demonstração (`PLACA_PROVEDOR=demonstracao`) a consulta de placa devol
 vendor/bin/phpunit
 ```
 
-Cobrem: separação entre empresas, login e permissões, validação de placa, CPF e CNPJ, cadastro e transferência de veículos, auditoria e a consulta de placa (com a API simulada, incluindo erro de saldo, placa não encontrada e alerta de roubo).
+Cobrem: separação entre empresas, login e permissões, validação de placa, CPF e CNPJ, cadastro e transferência de veículos, auditoria, a consulta de placa (com a API simulada, incluindo erro de saldo, placa não encontrada e alerta de roubo) e a ordem de serviço inteira (numeração, totais, aprovação pelo link, itens adicionais, etapas, permissões, fotos e isolamento entre oficinas).
 
 ## Consulta de placa: custo
 
