@@ -25,7 +25,7 @@
             <div class="-mx-4 overflow-x-auto px-4 pb-2 lg:mx-0 lg:px-0">
                 <div class="grid min-w-[900px] grid-cols-5 gap-3">
                     @foreach (StatusOs::doPatio() as $st)
-                        @php($lista = $colunas->get($st->value, collect()))
+                        @php $lista = $colunas->get($st->value, collect()); @endphp
                         <section class="flex flex-col rounded-lg bg-[#e8eaed] p-2" aria-label="{{ $st->rotulo() }}">
                             <h2 class="flex items-center justify-between px-2 py-1.5 text-[15px]">
                                 {{ $st->rotulo() }}

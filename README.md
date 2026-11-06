@@ -8,10 +8,10 @@ Este repositório está sendo construído por módulos, um Pull Request por etap
 |---|---|---|
 | 1. Base | Login, empresas, usuários e perfis, clientes, veículos, recepção pela placa com consulta automática | pronta |
 | 2. Ordem de serviço | Orçamento, aprovação pelo WhatsApp, checklist com fotos, OS, garantia | pronta |
-| 3. Estoque e compras | Produtos, aviso de estoque mínimo, entrada por XML da nota | próxima |
-| 4. Caixa e financeiro | Caixa do dia, contas a pagar e receber, comissões | |
-| 5. Notas fiscais | NF-e, NFC-e, NFS-e (via emissor homologado) | |
-| 6. Agenda e lembretes | Agendamento, lembrete de revisão por km/tempo | |
+| 3. Estoque e compras | Produtos, aviso de estoque mínimo, entrada por XML da nota | pronta |
+| 4. Caixa e financeiro | Caixa do dia, contas a pagar e receber, comissões | pronta |
+| 5. Notas fiscais | NF-e, NFC-e, NFS-e (via Focus NFe) | pronta |
+| 6. Agenda e lembretes | Agendamento, lembrete de revisão por km/tempo | pronta |
 
 ## O que já funciona
 
@@ -45,6 +45,36 @@ Este repositório está sendo construído por módulos, um Pull Request por etap
 - **Garantia**: conta a partir da entrega; aparece no histórico do carro.
 - **Histórico** na ficha do veículo e do cliente, incluindo itens recusados (para oferecer de novo na próxima visita).
 - **Painel**: carros no pátio por etapa, atrasados e entregues no mês.
+
+### Etapa 3: estoque e compras
+
+- **Produtos** com código, código de barras, NCM, unidade, localização na prateleira, custo, preço e estoque mínimo.
+- **Aviso de estoque mínimo** no painel e na lista de produtos.
+- **Entrada pela nota de compra**: envie o XML que o fornecedor manda por e-mail. O sistema cadastra o fornecedor, reconhece os produtos (pelo código de barras ou pelo código do fornecedor, que ele aprende na primeira nota), dá entrada no estoque, atualiza o custo e lança as parcelas em contas a pagar. Nota repetida é recusada.
+- **Peças do estoque na OS**: na entrega do carro, a baixa é automática.
+- **Inventário**: entrada manual, saída (perda) e contagem da prateleira, tudo com histórico.
+
+### Etapa 4: caixa e financeiro
+
+- **Caixa do dia**: abre com troco, recebe, faz retirada (sangria) e reforço, fecha conferindo o dinheiro da gaveta e mostra a diferença.
+- **Receber a OS**: Pix, dinheiro, débito, crédito (parcelado), boleto ou a prazo, dividindo em até 3 formas. Boleto e a prazo viram contas a receber com parcelas mensais.
+- **Contas a receber**: vencidas em destaque, botão "Cobrar" que abre o WhatsApp com a mensagem pronta.
+- **Contas a pagar**: despesas por categoria, contas fixas repetidas por meses, parcelas das notas de compra.
+- **Comissões**: percentual por mecânico, calculado na entrega sobre os serviços (com o desconto proporcional).
+- **Resumo do mês**: carros entregues, ticket médio, entradas por forma, despesas por categoria, serviços e peças que mais faturaram, valor recusado pelos clientes.
+
+### Etapa 5: notas fiscais
+
+- **NFS-e** (serviços), **NFC-e** (peças para consumidor) e **NF-e** (peças para empresa), emitidas de dentro da OS depois do pagamento.
+- Integração com a **Focus NFe** (API v2). Cada oficina tem seu token, guardado criptografado. Situação atualizada sozinha a cada 5 minutos, PDF e XML, cancelamento com justificativa.
+- **Sem token, o sistema emite em modo demonstração** (nota sem valor fiscal), para treinar a equipe.
+- Os padrões fiscais (CFOP, CSOSN, item da lista de serviço, alíquota de ISS, CST de PIS/COFINS) ficam na tela Empresa e no `.env`. **Confira com o contador e teste em homologação antes de ir para produção.**
+
+### Etapa 6: agenda e lembretes
+
+- **Agenda da semana** (segunda a sábado): cliente, placa, serviço, duração; confirmar, marcar chegada (já abre a OS) ou falta; botão de WhatsApp para confirmar o horário.
+- **Lembretes de revisão**: no catálogo, cada serviço pode ter prazo (ex.: troca de óleo a cada 6 meses ou 10.000 km). Na entrega do carro, o lembrete é criado sozinho.
+- **WhatsApp automático (opcional)** com a Evolution API: todo dia às 9h envia os lembretes dos próximos 7 dias e confirma os agendamentos do dia seguinte. Sem a Evolution, os botões abrem o WhatsApp com a mensagem pronta.
 
 ## Requisitos do servidor
 
@@ -112,17 +142,27 @@ O comando mostra a senha gerada. O dono entra, troca a senha e cadastra a equipe
 
 ### Fila e agendador
 
-As fotos das OS ficam em `storage/app/private/os/`. Inclua essa pasta no backup.
+As fotos das OS e os XML das notas de compra ficam em `storage/app/private/`. Inclua essa pasta no backup.
 
-Por enquanto não há tarefas agendadas. Quando as próximas etapas entrarem (lembretes, notas), será preciso adicionar ao cron:
+Adicione ao cron do servidor (atualiza as notas fiscais e envia os lembretes):
 
 ```
 * * * * * cd /caminho/torque && php artisan schedule:run >> /dev/null 2>&1
 ```
 
+### Notas fiscais (Focus NFe)
+
+1. Crie a conta na Focus NFe e cadastre a empresa da oficina lá (com o certificado digital A1).
+2. No Torque, em **Empresa → Dados fiscais**, preencha inscrições, código IBGE do município, regime, CFOP, CSOSN, item da lista de serviço e alíquota de ISS, e cole o **token**.
+3. Deixe o ambiente em **Homologação**, emita algumas notas de teste e só depois mude para **Produção**.
+
+### WhatsApp automático (opcional)
+
+Com a Evolution API instalada, coloque no `.env` `EVOLUTION_URL` e `EVOLUTION_KEY` e, em **Empresa**, o nome da instância conectada ao WhatsApp da oficina.
+
 ## Ver online sem instalar nada (GitHub Codespaces)
 
-No GitHub, botão verde **Code** → aba **Codespaces** → **Create codespace on fase2-os** (a versão mais nova; depois de aprovar os PRs, use `main`).
+No GitHub, botão verde **Code** → aba **Codespaces** → **Create codespace on sistema-completo** (a versão mais nova; depois de aprovar os PRs, use `main`).
 Na primeira vez leva uns 5 minutos para preparar; depois o sistema abre sozinho numa aba nova.
 Login: **dono@demo.com.br / senha12345**. Se a aba não abrir, vá em **Ports** e clique no globo da porta 8000.
 
@@ -139,6 +179,7 @@ php artisan serve
 ```
 
 Acesse http://127.0.0.1:8000 e entre com **dono@demo.com.br / senha12345**.
+Para testar a entrada de nota de compra, use o arquivo `tests/Fixtures/nfe-compra.xml`.
 Também existem `recepcao@demo.com.br` (consultor) e `mecanico@demo.com.br` (mecânico), mesma senha.
 
 No modo demonstração (`PLACA_PROVEDOR=demonstracao`) a consulta de placa devolve dados fictícios e não gasta nada. Placas começando com `ZZZ` simulam "não encontrada".
@@ -149,7 +190,7 @@ No modo demonstração (`PLACA_PROVEDOR=demonstracao`) a consulta de placa devol
 vendor/bin/phpunit
 ```
 
-Cobrem: separação entre empresas, login e permissões, validação de placa, CPF e CNPJ, cadastro e transferência de veículos, auditoria, a consulta de placa (com a API simulada, incluindo erro de saldo, placa não encontrada e alerta de roubo) e a ordem de serviço inteira (numeração, totais, aprovação pelo link, itens adicionais, etapas, permissões, fotos e isolamento entre oficinas).
+São 77 testes. Cobrem: separação entre empresas, login e permissões, placa, CPF e CNPJ, veículos, auditoria, consulta de placa (API simulada), a ordem de serviço inteira, importação de XML de compra (inclusive aprendizado do código do fornecedor), inventário, pagamento dividido e parcelado, caixa (sangria, fechamento com diferença), comissões, lembretes, notas fiscais (Focus NFe simulada: dados enviados, consulta, erro da SEFAZ, cancelamento) e WhatsApp pela Evolution API (simulada).
 
 ## Consulta de placa: custo
 

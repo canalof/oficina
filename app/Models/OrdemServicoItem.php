@@ -12,11 +12,11 @@ class OrdemServicoItem extends Model
 
     protected $table = 'ordem_servico_itens';
 
-    protected $fillable = ['tipo', 'servico_id', 'descricao', 'quantidade', 'valor_unitario_centavos', 'situacao', 'mecanico_id'];
+    protected $fillable = ['tipo', 'servico_id', 'produto_id', 'estoque_baixado', 'descricao', 'quantidade', 'valor_unitario_centavos', 'situacao', 'mecanico_id'];
 
     protected function casts(): array
     {
-        return ['quantidade' => 'decimal:3', 'valor_unitario_centavos' => 'integer', 'total_centavos' => 'integer'];
+        return ['quantidade' => 'decimal:3', 'valor_unitario_centavos' => 'integer', 'total_centavos' => 'integer', 'estoque_baixado' => 'boolean'];
     }
 
     protected static function booted(): void
@@ -29,6 +29,16 @@ class OrdemServicoItem extends Model
     public function ordemServico(): BelongsTo
     {
         return $this->belongsTo(OrdemServico::class);
+    }
+
+    public function produto(): BelongsTo
+    {
+        return $this->belongsTo(Produto::class)->withTrashed();
+    }
+
+    public function servico(): BelongsTo
+    {
+        return $this->belongsTo(Servico::class)->withTrashed();
     }
 
     public function mecanico(): BelongsTo

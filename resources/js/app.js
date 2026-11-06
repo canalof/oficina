@@ -123,10 +123,20 @@ if (itemForm) {
         itemForm.querySelector('[name=descricao]').value = op.dataset.nome;
         itemForm.querySelector('[name=valor]').value = op.dataset.preco;
     });
+    const estoque = itemForm.querySelector('[data-estoque]');
+    const soPeca = itemForm.querySelector('[data-so-peca]');
+    estoque?.addEventListener('change', () => {
+        const op = estoque.selectedOptions[0];
+        if (!op?.value) return;
+        itemForm.querySelector('[name=descricao]').value = op.dataset.nome;
+        itemForm.querySelector('[name=valor]').value = op.dataset.preco;
+    });
     const atualizarTipo = () => {
         const peca = itemForm.querySelector('[name=tipo]:checked')?.value === 'peca';
         if (soServico) soServico.hidden = peca;
+        if (soPeca) soPeca.hidden = !peca;
         if (peca && catalogo) catalogo.value = '';
+        if (!peca && estoque) estoque.value = '';
     };
     itemForm.addEventListener('change', (e) => { if (e.target.name === 'tipo') atualizarTipo(); });
     atualizarTipo();
@@ -143,3 +153,39 @@ if (orc) {
     };
     orc.addEventListener('change', somar);
 }
+
+// OS: receber pagamento (divide em formas, mostra quanto falta)
+const pag = document.querySelector('[data-pagamento]');
+if (pag) {
+    const total = parseInt(pag.dataset.pagamento, 10);
+    const linhas = [...pag.querySelectorAll('[data-linha]')];
+    const centavos = (v) => parseInt(soDigitos(v) || '0', 10);
+    const atualizar = () => {
+        let soma = 0;
+        linhas.forEach((l) => {
+            if (!l.hidden) soma += centavos(l.querySelector('[data-valor]').value);
+            const f = l.querySelector('[data-forma]').value;
+            l.querySelector('[data-parcelas]').hidden = !['credito', 'boleto', 'prazo'].includes(f);
+            l.querySelector('[data-vencimento]').hidden = !['boleto', 'prazo'].includes(f);
+        });
+        const r = pag.querySelector('[data-restante]');
+        const falta = total - soma;
+        r.textContent = falta === 0 ? 'Valores conferem' : (falta > 0 ? 'Falta ' + reais(falta) : 'Passou ' + reais(-falta));
+        r.className = 'text-sm font-semibold ' + (falta === 0 ? 'text-ok' : 'text-erro');
+    };
+    pag.addEventListener('input', atualizar);
+    pag.addEventListener('change', atualizar);
+    pag.querySelector('[data-mais-forma]')?.addEventListener('click', () => {
+        const prox = linhas.find((l) => l.hidden);
+        if (!prox) return;
+        prox.hidden = false;
+        let soma = 0;
+        linhas.forEach((l) => { if (!l.hidden && l !== prox) soma += centavos(l.querySelector('[data-valor]').value); });
+        if (total - soma > 0) prox.querySelector('[data-valor]').value = mascaraDinheiro(String(total - soma));
+        atualizar();
+    });
+    atualizar();
+}
+
+// Agenda no celular: mostra o dia de hoje
+document.querySelector('[data-hoje]')?.scrollIntoView({ inline: 'center', block: 'nearest' });

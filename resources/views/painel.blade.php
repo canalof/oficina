@@ -1,7 +1,7 @@
 <x-app titulo="Painel">
     <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-            @php($h = now()->hour)
+            @php $h = now()->hour; @endphp
             <h1>{{ $h < 12 ? 'Bom dia' : ($h < 18 ? 'Boa tarde' : 'Boa noite') }}, {{ explode(' ', auth()->user()->name)[0] }}</h1>
             <p class="text-suave">{{ now()->translatedFormat('l, d \d\e F') }}</p>
         </div>
@@ -13,8 +13,41 @@
         @endcan
     </div>
 
+    @php $avisos = collect([
+        auth()->user()->can('caixa.operar') && ! $caixa ? ['O caixa está fechado', route('caixa.index'), 'Abrir caixa'] : null,
+        auth()->user()->can('estoque.ver') && $estoqueBaixo ? [$estoqueBaixo.' '.($estoqueBaixo === 1 ? 'produto' : 'produtos').' no estoque mínimo', route('produtos.index', ['filtro' => 'minimo']), 'Ver'] : null,
+        auth()->user()->can('financeiro.ver') && $receberVencido ? ['R$ '.number_format($receberVencido / 100, 2, ',', '.').' a receber vencido', route('receber.index', ['filtro' => 'vencidas']), 'Cobrar'] : null,
+        auth()->user()->can('financeiro.ver') && $pagarHoje ? ['R$ '.number_format($pagarHoje / 100, 2, ',', '.').' em contas vencendo até hoje', route('pagar.index', ['filtro' => 'abertas']), 'Pagar'] : null,
+        auth()->user()->can('agenda.ver') && $lembretesSemana ? [$lembretesSemana.' '.($lembretesSemana === 1 ? 'lembrete' : 'lembretes').' de revisão para enviar', route('lembretes.index'), 'Enviar'] : null,
+    ])->filter(); @endphp
+    @if ($avisos->isNotEmpty())
+        <div class="mb-4 grid gap-2 sm:grid-cols-2">
+            @foreach ($avisos as [$texto, $link, $acao])
+                <a href="{{ $link }}" class="flex items-center justify-between gap-3 rounded-md border border-[#f0d58a] bg-[#fff7df] px-4 py-2.5 text-[15px] hover:border-sinal"><span>{{ $texto }}</span><span class="font-semibold">{{ $acao }}</span></a>
+            @endforeach
+        </div>
+    @endif
+
+    @can('agenda.ver')
+        @if ($agendaHoje->isNotEmpty())
+            <div class="card mb-4">
+                <div class="flex items-center justify-between border-b border-linha px-5 py-3"><h2>Agenda de hoje</h2><a href="{{ route('agenda.index') }}" class="text-sm font-semibold text-asfalto-3">Ver agenda</a></div>
+                <ul class="divide-y divide-linha">
+                    @foreach ($agendaHoje as $a)
+                        <li class="flex items-center gap-4 px-5 py-2.5">
+                            <span class="w-12 font-semibold">{{ $a->inicio->format('H:i') }}</span>
+                            @if ($a->placa)<x-placa :placa="$a->placa" />@endif
+                            <span class="min-w-0 flex-1 truncate">{{ $a->nome }} · {{ $a->servico }}</span>
+                            <span class="text-sm text-suave">{{ \App\Models\Agendamento::STATUS[$a->status] }}</span>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+    @endcan
+
     @can('os.ver')
-        @php($patio = \App\Support\StatusOs::doPatio())
+        @php $patio = \App\Support\StatusOs::doPatio(); @endphp
         <a href="{{ route('os.index') }}" class="card mb-4 block hover:border-asfalto-3">
             <div class="flex items-center justify-between border-b border-linha px-5 py-3">
                 <h2>No pátio agora</h2>

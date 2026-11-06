@@ -80,7 +80,7 @@
                     @endforeach
                 </ul>
                 <div class="border-t border-linha bg-[#fafbfc] px-4 py-4">
-                    @php($jaAprovado = $aprovados->sum('total_centavos'))
+                    @php $jaAprovado = $aprovados->sum('total_centavos'); @endphp
                     @if ($jaAprovado)
                         <div class="flex justify-between text-[15px] text-suave"><span>Já aprovado antes</span><span>{{ Dinheiro::formatar($jaAprovado) }}</span></div>
                     @endif

@@ -47,14 +47,6 @@
         </div>
     @endif
 
-    {{-- Aviso de carro pronto pelo WhatsApp --}}
-    @if (session('avisar'))
-        <div class="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-md border border-[#b7dcc6] bg-[#eef8f2] px-4 py-3 text-[15px]">
-            <span>Avise o cliente que o carro está pronto.</span>
-            <a href="{{ session('avisar') }}" target="_blank" rel="noopener" class="btn btn-sm">Avisar pelo WhatsApp</a>
-        </div>
-    @endif
-
     {{-- Próximo passo --}}
     @if ($st->noPatio())
         <section class="card mb-6 border-l-4 border-l-sinal">
@@ -67,7 +59,7 @@
                             @case(StatusOs::Aguardando) Esperando o cliente aprovar @break
                             @case(StatusOs::Aprovada) {{ $pendentes->count() ? 'Itens adicionais esperando aprovação' : 'Começar o serviço' }} @break
                             @case(StatusOs::EmServico) {{ $pendentes->count() ? 'Itens adicionais esperando aprovação' : 'Terminar o serviço e marcar como pronto' }} @break
-                            @case(StatusOs::Pronta) Entregar o carro ao cliente @break
+                            @case(StatusOs::Pronta) {{ $os->recebido_em || ! $os->total_centavos ? 'Entregar o carro ao cliente' : 'Receber o pagamento e entregar' }} @break
                         @endswitch
                     </div>
                     @if ($st === StatusOs::Aguardando && $os->enviado_em)
@@ -94,8 +86,13 @@
                     @if (in_array($st, [StatusOs::Aprovada, StatusOs::EmServico], true) && $pendentes->isEmpty() && $podeExecutar)
                         <form method="post" action="{{ route('os.acao', [$os, 'concluir']) }}">@csrf<button @class(['btn-primario' => $st === StatusOs::EmServico, 'btn' => $st !== StatusOs::EmServico])>Marcar como pronto</button></form>
                     @endif
-                    @if ($st === StatusOs::Pronta && $podeEditar)
+                    @if ($st === StatusOs::Pronta && ! $os->recebido_em && $os->total_centavos > 0 && auth()->user()->can('caixa.operar'))
+                        <a href="#pagamento" class="btn-primario">Receber e entregar</a>
+                    @endif
+                    @if ($st === StatusOs::Pronta && $podeEditar && ($os->recebido_em || $os->total_centavos === 0))
                         <form method="post" action="{{ route('os.acao', [$os, 'entregar']) }}" data-confirmar="Confirmar a entrega do carro? A garantia começa a contar hoje.">@csrf<button class="btn-primario">Entregar carro</button></form>
+                    @endif
+                    @if ($st === StatusOs::Pronta && $podeEditar)
                         @if ($whats)<a href="{{ $os->cliente->linkWhatsapp('Olá, '.explode(' ', $os->cliente->nome)[0].'! Seu '.$os->veiculo->descricao().' ('.$os->veiculo->placaFormatada().') está pronto para retirar. Total: '.$os->totalFormatado().'. '.auth()->user()->empresa->nome_fantasia) }}" target="_blank" rel="noopener" class="btn">Avisar pelo WhatsApp</a>@endif
                     @endif
                 </div>
@@ -217,6 +214,14 @@
                                 @endforeach
                             </select>
                         </label>
+                        <label class="campo mb-3 max-w-md" data-so-peca hidden><span>Do estoque</span>
+                            <select name="produto_id" class="input" data-estoque>
+                                <option value="">Peça fora do estoque (escrever à mão)</option>
+                                @foreach ($produtos as $p)
+                                    <option value="{{ $p->id }}" data-preco="{{ Dinheiro::campo($p->preco_centavos) }}" data-nome="{{ $p->nome }}">{{ $p->nome }} · {{ Dinheiro::formatar($p->preco_centavos) }} · tem {{ $p->estoqueFormatado() }}</option>
+                                @endforeach
+                            </select>
+                        </label>
                         <div class="grid gap-3 sm:grid-cols-[1fr_80px_130px_auto] sm:items-end">
                             <label class="campo"><span>Descrição</span>
                                 <input name="descricao" value="{{ old('descricao') }}" class="input @error('descricao') input-erro @enderror" placeholder="Ex.: Pastilha de freio dianteira" maxlength="200">
@@ -238,6 +243,76 @@
                     </form>
                 @endif
             </section>
+
+            {{-- Pagamento --}}
+            @if ($st === StatusOs::Pronta && ! $os->recebido_em && $os->total_centavos > 0 && auth()->user()->can('caixa.operar'))
+                @php $formas = \App\Services\Financeiro\Financeiro::FORMAS; @endphp
+                <section class="card border-2 border-asfalto" id="pagamento">
+                    <div class="border-b border-linha px-5 py-4">
+                        <h2>Receber {{ $os->totalFormatado() }}</h2>
+                        <p class="text-sm text-suave">Pode dividir em até 3 formas. Boleto e "a prazo" viram contas a receber.@unless($caixaAberto) <strong>O caixa está fechado:</strong> dinheiro só depois de abrir.@endunless</p>
+                    </div>
+                    <form method="post" action="{{ route('os.receber', $os) }}" class="space-y-3 px-5 py-4" data-pagamento="{{ $os->total_centavos }}">
+                        @csrf
+                        @for ($i = 0; $i < 3; $i++)
+                            <div class="grid items-end gap-2 sm:grid-cols-[1.3fr_1fr_90px_1.2fr]" data-linha @if($i > 0 && ! old('pagamentos.'.$i.'.valor')) hidden @endif>
+                                <label class="campo"><span>Forma</span>
+                                    <select name="pagamentos[{{ $i }}][forma]" class="input" data-forma>
+                                        @foreach ($formas as $v => $r)@continue($v === 'transferencia')<option value="{{ $v }}" @selected(old('pagamentos.'.$i.'.forma', $i === 0 ? 'pix' : 'dinheiro') === $v)>{{ $r }}</option>@endforeach
+                                    </select>
+                                </label>
+                                <label class="campo"><span>Valor</span><input name="pagamentos[{{ $i }}][valor]" class="input text-right" data-mascara="dinheiro" inputmode="decimal" value="{{ old('pagamentos.'.$i.'.valor', $i === 0 ? Dinheiro::campo($os->total_centavos) : '') }}" data-valor></label>
+                                <label class="campo" data-parcelas><span>Parcelas</span><input name="pagamentos[{{ $i }}][parcelas]" type="number" min="1" max="24" value="{{ old('pagamentos.'.$i.'.parcelas', 1) }}" class="input"></label>
+                                <label class="campo" data-vencimento><span>1º vencimento</span><input name="pagamentos[{{ $i }}][vencimento]" type="date" value="{{ old('pagamentos.'.$i.'.vencimento', today()->addDays(30)->toDateString()) }}" class="input"></label>
+                            </div>
+                        @endfor
+                        <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+                            <button type="button" class="text-sm font-semibold text-asfalto-3 hover:underline" data-mais-forma>+ dividir em outra forma</button>
+                            <span class="text-sm" data-restante></span>
+                        </div>
+                        <label class="flex items-center gap-2 text-[15px]"><input type="checkbox" name="entregar" value="1" checked class="h-5 w-5 accent-asfalto"> Entregar o carro agora</label>
+                        <button class="btn-primario px-6 py-3 text-base">Registrar pagamento</button>
+                    </form>
+                </section>
+            @endif
+
+            @if ($os->contasReceber->isNotEmpty())
+                <section class="card card-corpo">
+                    <h2 class="mb-3">Pagamento</h2>
+                    <ul class="space-y-1 text-[15px]">
+                        @foreach ($os->contasReceber as $cr)
+                            <li class="flex flex-wrap justify-between gap-3">
+                                <span>{{ \App\Services\Financeiro\Financeiro::FORMAS[$cr->forma] ?? $cr->forma }}{{ $cr->parcela ? ' · '.$cr->parcela : '' }}</span>
+                                <span>{{ Dinheiro::formatar($cr->valor_centavos) }} · @if($cr->status === 'recebida')<span class="text-ok">recebido</span>@else<span @class(['text-erro' => $cr->vencida(), 'text-sinal-escuro' => ! $cr->vencida()])>vence {{ $cr->vencimento->format('d/m/Y') }}</span>@endif</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                </section>
+            @endif
+
+            {{-- Notas fiscais --}}
+            @if ($os->recebido_em && auth()->user()->can('notas.emitir') && $st !== StatusOs::Cancelada)
+                @php $temServ = $os->itens->where('situacao', 'aprovado')->where('tipo', 'servico')->isNotEmpty(); @endphp
+                @php $temPeca = $os->itens->where('situacao', 'aprovado')->where('tipo', 'peca')->isNotEmpty(); @endphp
+                @php $ativa = fn ($t) => $os->notas->where('tipo', $t)->whereIn('status', ['processando', 'autorizada'])->isNotEmpty(); @endphp
+                <section class="card" id="notas">
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-linha px-5 py-4">
+                        <h2>Notas fiscais</h2>
+                        <div class="flex flex-wrap gap-2">
+                            @if ($temServ && ! $ativa('nfse'))<form method="post" action="{{ route('notas.emitir', [$os, 'nfse']) }}">@csrf<button class="btn btn-sm">Emitir NFS-e (serviços)</button></form>@endif
+                            @if ($temPeca && ! $ativa('nfce') && ! $ativa('nfe'))
+                                <form method="post" action="{{ route('notas.emitir', [$os, 'nfce']) }}">@csrf<button class="btn btn-sm">Emitir NFC-e (peças)</button></form>
+                                <form method="post" action="{{ route('notas.emitir', [$os, 'nfe']) }}">@csrf<button class="btn btn-sm" title="Para empresa que pede NF-e">NF-e (peças, empresa)</button></form>
+                            @endif
+                        </div>
+                    </div>
+                    @if ($os->notas->isEmpty())
+                        <p class="px-5 py-5 text-sm text-suave">Nenhuma nota emitida.@if(! auth()->user()->empresa->fiscal_token) Sem token da Focus NFe, as notas saem em modo demonstração.@endif</p>
+                    @else
+                        <ul class="divide-y divide-linha">@include('notas._lista', ['notas' => $os->notas])</ul>
+                    @endif
+                </section>
+            @endif
 
             {{-- Fotos --}}
             <section class="card" id="fotos">
@@ -356,7 +431,7 @@
                                 <a href="{{ route('os.show', $o) }}" class="font-medium hover:underline">{{ $o->numeroFormatado() }} · {{ $o->created_at->format('d/m/Y') }}</a>
                                 <span class="text-suave">{{ $o->status->rotulo() }}</span>
                             </li>
-                            @php($recusados = $o->itens->where('situacao', 'recusado'))
+                            @php $recusados = $o->itens->where('situacao', 'recusado'); @endphp
                             @if ($recusados->isNotEmpty())
                                 <li class="-mt-1 text-sm text-suave">Recusado: {{ $recusados->pluck('descricao')->join(', ') }}</li>
                             @endif

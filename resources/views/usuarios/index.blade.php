@@ -27,11 +27,11 @@
         <h2 class="mb-3">O que cada perfil pode fazer</h2>
         <dl class="grid gap-3 text-[15px] sm:grid-cols-2">
             <div><dt class="font-semibold">Dono</dt><dd class="text-suave">Tudo, inclusive dados da empresa.</dd></div>
-            <div><dt class="font-semibold">Gerente</dt><dd class="text-suave">Tudo, menos os dados da empresa: OS, cancelamentos, catálogo de serviços e usuários.</dd></div>
-            <div><dt class="font-semibold">Consultor / recepção</dt><dd class="text-suave">Recebe carros, abre OS, monta e envia orçamentos, consulta placa.</dd></div>
-            <div><dt class="font-semibold">Mecânico</dt><dd class="text-suave">Vê as OS, registra diagnóstico e fotos, inicia e conclui serviços.</dd></div>
-            <div><dt class="font-semibold">Caixa</dt><dd class="text-suave">Consulta e atualiza clientes; vê OS (o caixa entra no módulo financeiro).</dd></div>
-            <div><dt class="font-semibold">Estoquista</dt><dd class="text-suave">Vê veículos e OS (estoque entra no módulo de estoque).</dd></div>
+            <div><dt class="font-semibold">Gerente</dt><dd class="text-suave">Tudo, menos os dados da empresa e fiscais.</dd></div>
+            <div><dt class="font-semibold">Consultor / recepção</dt><dd class="text-suave">Recebe carros, agenda, abre OS, envia orçamentos, recebe pagamentos e emite notas.</dd></div>
+            <div><dt class="font-semibold">Mecânico</dt><dd class="text-suave">Vê as OS e o estoque, registra diagnóstico e fotos, inicia e conclui serviços.</dd></div>
+            <div><dt class="font-semibold">Caixa</dt><dd class="text-suave">Caixa, contas a receber e a pagar, notas fiscais e agenda.</dd></div>
+            <div><dt class="font-semibold">Estoquista</dt><dd class="text-suave">Produtos, ajustes de estoque, fornecedores e entrada de notas de compra.</dd></div>
         </dl>
     </section>
 </x-app>

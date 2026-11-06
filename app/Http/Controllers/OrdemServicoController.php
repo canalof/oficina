@@ -78,10 +78,12 @@ class OrdemServicoController extends Controller
     public function show(OrdemServico $os)
     {
         $this->authorize('os.ver');
-        $os->load(['veiculo', 'cliente', 'consultor', 'mecanico', 'itens.mecanico', 'fotos', 'eventos.user']);
+        $os->load(['veiculo', 'cliente', 'consultor', 'mecanico', 'itens.mecanico', 'itens.produto', 'fotos', 'eventos.user', 'contasReceber', 'notas']);
 
         return view('os.show', [
             'os' => $os,
+            'produtos' => \App\Models\Produto::where('ativo', true)->orderBy('nome')->get(['id', 'nome', 'codigo', 'preco_centavos', 'estoque', 'unidade']),
+            'caixaAberto' => \App\Models\Caixa::aberto() !== null,
             'servicos' => Servico::where('ativo', true)->orderBy('nome')->get(),
             'mecanicos' => $this->mecanicos(),
             'outras' => $os->veiculo->ordens()->where('id', '<>', $os->id)->with('itens')->limit(10)->get(),
@@ -170,9 +172,8 @@ class OrdemServicoController extends Controller
                     return back()->with('ok', 'Serviço iniciado.');
                 case 'concluir':
                     $os->concluir();
-                    $link = $os->cliente?->linkWhatsapp('Olá, '.$this->primeiroNome($os).'! Seu '.$os->veiculo->descricao().' ('.$os->veiculo->placaFormatada().') está pronto para retirar. Total: '.$os->totalFormatado().'. '.$this->empresa());
 
-                    return back()->with('ok', 'Carro marcado como pronto.')->with('avisar', $link);
+                    return back()->with('ok', 'Carro marcado como pronto. Avise o cliente pelo WhatsApp.');
                 case 'entregar':
                     $os->entregar();
 

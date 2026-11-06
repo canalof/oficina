@@ -26,22 +26,25 @@ class OrdemServicoItemController extends Controller
         $dados = $request->validate([
             'tipo' => ['required', Rule::in(['servico', 'peca'])],
             'servico_id' => ['nullable', Rule::exists('servicos', 'id')->where('empresa_id', Tenant::id())],
-            'descricao' => ['required_without:servico_id', 'nullable', 'string', 'max:200'],
+            'produto_id' => ['nullable', Rule::exists('produtos', 'id')->where('empresa_id', Tenant::id())],
+            'descricao' => ['required_without_all:servico_id,produto_id', 'nullable', 'string', 'max:200'],
             'quantidade' => ['required', 'numeric', 'gt:0', 'max:99999'],
             'valor' => ['required', 'integer', 'min:0', 'max:99999999'],
         ], [
-            'descricao.required_without' => 'Escreva o serviço ou a peça.',
+            'descricao.required_without_all' => 'Escreva o serviço ou a peça.',
         ], ['valor' => 'valor', 'quantidade' => 'quantidade']);
 
-        $servico = ! empty($dados['servico_id']) ? Servico::find($dados['servico_id']) : null;
-        $descricao = trim((string) ($dados['descricao'] ?? '')) ?: $servico?->nome;
+        $servico = $dados['tipo'] === 'servico' && ! empty($dados['servico_id']) ? Servico::find($dados['servico_id']) : null;
+        $produto = $dados['tipo'] === 'peca' && ! empty($dados['produto_id']) ? \App\Models\Produto::find($dados['produto_id']) : null;
+        $descricao = trim((string) ($dados['descricao'] ?? '')) ?: ($servico?->nome ?? $produto?->nome);
 
         $item = $os->itens()->create([
-            'tipo' => $servico ? 'servico' : $dados['tipo'],
+            'tipo' => $dados['tipo'],
             'servico_id' => $servico?->id,
+            'produto_id' => $produto?->id,
             'descricao' => $descricao,
             'quantidade' => $dados['quantidade'],
-            'valor_unitario_centavos' => $dados['valor'] ?: ($servico?->preco_centavos ?? 0),
+            'valor_unitario_centavos' => $dados['valor'] ?: ($servico?->preco_centavos ?? $produto?->preco_centavos ?? 0),
             'situacao' => 'pendente',
         ]);
         $os->recalcular();

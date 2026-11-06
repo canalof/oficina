@@ -65,10 +65,12 @@ class UsuarioController extends Controller
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($u?->id)],
             'telefone' => ['nullable', 'string', 'max:20'],
             'perfil' => ['required', Rule::enum(Perfil::class)],
+            'comissao_percentual' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'loja_id' => ['nullable', Rule::exists('lojas', 'id')->where('empresa_id', Tenant::id())],
             'password' => [$u ? 'nullable' : 'required', Password::defaults()],
         ], ['email.unique' => 'Este e-mail já é usado por outro usuário.'], ['name' => 'nome', 'password' => 'senha']);
         $dados['ativo'] = $request->boolean('ativo');
+        $dados['comissao_percentual'] = (float) ($dados['comissao_percentual'] ?? 0);
 
         return $dados;
     }

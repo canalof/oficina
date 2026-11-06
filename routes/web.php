@@ -1,5 +1,17 @@
 <?php
 
+use App\Http\Controllers\AgendaController;
+use App\Http\Controllers\CaixaController;
+use App\Http\Controllers\ComissaoController;
+use App\Http\Controllers\CompraController;
+use App\Http\Controllers\ContaPagarController;
+use App\Http\Controllers\ContaReceberController;
+use App\Http\Controllers\FornecedorController;
+use App\Http\Controllers\LembreteController;
+use App\Http\Controllers\NotaFiscalController;
+use App\Http\Controllers\ProdutoController;
+use App\Http\Controllers\RecebimentoController;
+use App\Http\Controllers\RelatorioController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\EmpresaController;
@@ -52,6 +64,48 @@ Route::middleware('auth')->group(function () {
     Route::delete('/os/{os}/fotos/{foto}', [OrdemServicoFotoController::class, 'destroy'])->name('os.fotos.destroy');
 
     Route::resource('servicos', ServicoController::class)->only(['index', 'store', 'update', 'destroy']);
+
+    // Estoque e compras
+    Route::resource('produtos', ProdutoController::class);
+    Route::post('/produtos/{produto}/movimentar', [ProdutoController::class, 'movimentar'])->name('produtos.movimentar');
+    Route::resource('fornecedores', FornecedorController::class)->parameters(['fornecedores' => 'fornecedor'])->except(['show', 'destroy']);
+    Route::resource('compras', CompraController::class)->only(['index', 'store', 'show', 'destroy']);
+    Route::post('/compras/{compra}/lancar', [CompraController::class, 'lancar'])->name('compras.lancar');
+    Route::get('/compras/{compra}/xml', [CompraController::class, 'xml'])->name('compras.xml');
+
+    // Caixa e financeiro
+    Route::get('/caixa', [CaixaController::class, 'index'])->name('caixa.index');
+    Route::get('/caixa/{caixa}', [CaixaController::class, 'show'])->name('caixa.show');
+    Route::post('/caixa/abrir', [CaixaController::class, 'abrir'])->name('caixa.abrir');
+    Route::post('/caixa/movimento', [CaixaController::class, 'movimento'])->name('caixa.movimento');
+    Route::post('/caixa/fechar', [CaixaController::class, 'fechar'])->name('caixa.fechar');
+    Route::post('/os/{os}/receber', [RecebimentoController::class, 'store'])->name('os.receber');
+    Route::get('/financeiro/receber', [ContaReceberController::class, 'index'])->name('receber.index');
+    Route::post('/financeiro/receber', [ContaReceberController::class, 'store'])->name('receber.store');
+    Route::post('/financeiro/receber/{conta}/receber', [ContaReceberController::class, 'receber'])->name('receber.receber');
+    Route::post('/financeiro/receber/{conta}/cancelar', [ContaReceberController::class, 'cancelar'])->name('receber.cancelar');
+    Route::get('/financeiro/pagar', [ContaPagarController::class, 'index'])->name('pagar.index');
+    Route::post('/financeiro/pagar', [ContaPagarController::class, 'store'])->name('pagar.store');
+    Route::post('/financeiro/pagar/{conta}/pagar', [ContaPagarController::class, 'pagar'])->name('pagar.pagar');
+    Route::post('/financeiro/pagar/{conta}/cancelar', [ContaPagarController::class, 'cancelar'])->name('pagar.cancelar');
+    Route::get('/financeiro/comissoes', [ComissaoController::class, 'index'])->name('comissoes.index');
+    Route::post('/financeiro/comissoes/pagar', [ComissaoController::class, 'pagar'])->name('comissoes.pagar');
+    Route::get('/financeiro/resumo', [RelatorioController::class, 'index'])->name('relatorio.index');
+
+    // Notas fiscais
+    Route::get('/notas', [NotaFiscalController::class, 'index'])->name('notas.index');
+    Route::post('/os/{os}/notas/{tipo}', [NotaFiscalController::class, 'emitir'])->whereIn('tipo', ['nfse', 'nfce', 'nfe'])->name('notas.emitir');
+    Route::post('/notas/{nota}/atualizar', [NotaFiscalController::class, 'atualizar'])->name('notas.atualizar');
+    Route::post('/notas/{nota}/cancelar', [NotaFiscalController::class, 'cancelar'])->name('notas.cancelar');
+
+    // Agenda e lembretes
+    Route::get('/agenda', [AgendaController::class, 'index'])->name('agenda.index');
+    Route::post('/agenda', [AgendaController::class, 'store'])->name('agenda.store');
+    Route::put('/agenda/{agendamento}', [AgendaController::class, 'update'])->name('agenda.update');
+    Route::delete('/agenda/{agendamento}', [AgendaController::class, 'destroy'])->name('agenda.destroy');
+    Route::get('/lembretes', [LembreteController::class, 'index'])->name('lembretes.index');
+    Route::post('/lembretes/{lembrete}/enviar', [LembreteController::class, 'enviar'])->name('lembretes.enviar');
+    Route::post('/lembretes/{lembrete}/descartar', [LembreteController::class, 'descartar'])->name('lembretes.descartar');
 
     Route::middleware('can:usuarios.gerenciar')->group(function () {
         Route::resource('usuarios', UsuarioController::class)->except(['show', 'destroy']);

@@ -69,7 +69,7 @@
             </div>
             <div class="divide-y divide-linha">
                 @foreach (Checklist::ITENS as $chave => $rotulo)
-                    @php($atual = $ck[$chave]['estado'] ?? null)
+                    @php $atual = $ck[$chave]['estado'] ?? null; @endphp
                     <div class="grid items-center gap-2 px-5 py-2.5 sm:grid-cols-[1fr_auto_1fr] sm:gap-4">
                         <span class="text-[15px] font-medium">{{ $rotulo }}</span>
                         <div class="inline-flex w-fit overflow-hidden rounded-md border border-[#c9cfd6] text-sm" role="radiogroup" aria-label="{{ $rotulo }}">
