@@ -65,6 +65,9 @@ return [
     |
     */
 
+    // Atrás de proxy HTTPS (Codespaces, Cloudflare, balanceador): TRUSTED_PROXIES=* ou lista de IPs
+    'trusted_proxies' => env('TRUSTED_PROXIES'),
+
     'timezone' => env('APP_TIMEZONE', 'America/Sao_Paulo'),
 
     /*

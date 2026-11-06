@@ -101,6 +101,12 @@ Por enquanto não há tarefas agendadas. Quando as próximas etapas entrarem (le
 * * * * * cd /caminho/torque && php artisan schedule:run >> /dev/null 2>&1
 ```
 
+## Ver online sem instalar nada (GitHub Codespaces)
+
+No GitHub, botão verde **Code** → aba **Codespaces** → **Create codespace on fase1-base** (ou `main`).
+Na primeira vez leva uns 5 minutos para preparar; depois o sistema abre sozinho numa aba nova.
+Login: **dono@demo.com.br / senha12345**. Se a aba não abrir, vá em **Ports** e clique no globo da porta 8000.
+
 ## Rodar no computador (para desenvolvimento)
 
 ```bash

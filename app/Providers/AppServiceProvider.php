@@ -32,6 +32,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if ($proxies = config('app.trusted_proxies')) {
+            \Illuminate\Http\Middleware\TrustProxies::at($proxies === '*' ? '*' : explode(',', $proxies));
+        }
         foreach (Perfil::todasPermissoes() as $permissao) {
             Gate::define($permissao, fn (User $user) => $user->pode($permissao));
         }
