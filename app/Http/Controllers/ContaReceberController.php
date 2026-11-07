@@ -21,7 +21,7 @@ class ContaReceberController extends Controller
         $q = ContaReceber::with(['cliente', 'ordemServico']);
         match ($filtro) {
             'vencidas' => $q->where('status', 'aberta')->where('vencimento', '<', today()),
-            'recebidas' => $q->where('status', 'recebida')->orderByDesc('recebido_em'),
+            'recebidas' => $q->whereIn('status', ['recebida', 'estornada'])->orderByDesc('recebido_em'),
             default => $q->where('status', 'aberta'),
         };
 
@@ -61,6 +61,18 @@ class ContaReceberController extends Controller
         }
 
         return back()->with('ok', Dinheiro::formatar($conta->valor_centavos).' recebido.');
+    }
+
+    public function estornar(Request $request, ContaReceber $conta, Financeiro $financeiro)
+    {
+        $this->authorize('financeiro.editar');
+        try {
+            $financeiro->estornarRecebimento($conta, (string) $request->input('motivo'));
+        } catch (DomainException $e) {
+            return back()->with('erro', $e->getMessage());
+        }
+
+        return back()->with('ok', 'Estorno registrado.');
     }
 
     public function cancelar(ContaReceber $conta)

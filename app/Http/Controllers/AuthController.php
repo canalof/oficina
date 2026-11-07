@@ -21,10 +21,20 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ], [], ['password' => 'senha']);
 
-        if (! Auth::attempt(['email' => strtolower($dados['email']), 'password' => $dados['password'], 'ativo' => true], $request->boolean('lembrar'))) {
+        $credenciais = ['email' => strtolower($dados['email']), 'password' => $dados['password'], 'ativo' => true];
+        if (! Auth::validate($credenciais)) {
             return back()->withErrors(['email' => 'E-mail ou senha incorretos.'])->onlyInput('email');
         }
+        $user = \App\Models\User::where('email', $credenciais['email'])->first();
 
+        // Verificação em duas etapas: guarda quem é e pede o código do aplicativo
+        if ($user->doisFatoresAtivo()) {
+            $request->session()->put('dois_fatores', ['id' => $user->id, 'lembrar' => $request->boolean('lembrar'), 'ate' => now()->addMinutes(5)->timestamp]);
+
+            return redirect()->route('login.codigo');
+        }
+
+        Auth::login($user, $request->boolean('lembrar'));
         $request->session()->regenerate();
         $request->user()->forceFill(['ultimo_acesso_em' => now()])->saveQuietly();
 

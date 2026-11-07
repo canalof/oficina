@@ -33,7 +33,17 @@ class DatabaseSeeder extends Seeder
             'cidade' => 'Sumaré',
             'uf' => 'SP',
             'telefone' => '(19) 3800-0000',
+            'plano_id' => \App\Models\Plano::where('slug', 'profissional')->value('id'),
+            'assinatura_status' => 'trial',
+            'trial_ate' => today()->addDays(14),
         ]);
+
+        // Administrador da plataforma (pede a verificação em duas etapas no primeiro acesso)
+        $plataforma = Empresa::create(['nome_fantasia' => 'Torque (plataforma)', 'assinatura_status' => 'ativa']);
+        Tenant::com($plataforma->id, fn () => User::create([
+            'empresa_id' => $plataforma->id, 'name' => 'Administrador Torque', 'email' => 'admin@demo.com.br',
+            'perfil' => Perfil::Dono, 'ativo' => true, 'password' => 'senha12345',
+        ])->forceFill(['admin_plataforma' => true])->save());
 
         Tenant::com($empresa->id, function () use ($empresa) {
             $loja = Loja::create(['nome' => 'Matriz', 'cidade' => 'Sumaré', 'uf' => 'SP']);

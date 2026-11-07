@@ -130,7 +130,7 @@ class OrdemServicoTest extends TestCase
         auth()->logout();
         $this->get('/orcamento/'.$os->token)->assertOk()->assertSee('Troca de discos')->assertSee('R$ 390,00');
         $pastilhas = $os->itens->firstWhere('descricao', 'Troca de pastilhas');
-        $this->post('/orcamento/'.$os->token, ['nome' => 'Mariana', 'decisao' => 'aprovar', 'itens' => [$pastilhas->id]])
+        $this->post('/orcamento/'.$os->token, ['nome' => 'Mariana', 'decisao' => 'aprovar', 'itens' => [$pastilhas->id], 'versao' => $os->versao])
             ->assertRedirect('/orcamento/'.$os->token);
 
         $os = $this->recarregar($os);
@@ -162,7 +162,7 @@ class OrdemServicoTest extends TestCase
         $this->post("/os/{$os->id}/acao/enviar");
         auth()->logout();
 
-        $this->post('/orcamento/'.$os->token, ['nome' => 'Mariana', 'decisao' => 'recusar']);
+        $this->post('/orcamento/'.$os->token, ['nome' => 'Mariana', 'decisao' => 'recusar', 'versao' => $this->recarregar($os)->versao]);
 
         $os = $this->recarregar($os);
         $this->assertSame(StatusOs::Orcamento, $os->status);

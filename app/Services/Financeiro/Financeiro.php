@@ -96,6 +96,31 @@ class Financeiro
         });
     }
 
+    /**
+     * Estorno de um recebimento (cliente devolveu, Pix voltou, cartão contestado).
+     * Nada é apagado: a conta fica "estornada" e o caixa registra a saída.
+     */
+    public function estornarRecebimento(ContaReceber $conta, string $motivo): void
+    {
+        if ($conta->status !== 'recebida') {
+            throw new DomainException('Só dá para estornar uma conta recebida.');
+        }
+        if (mb_strlen(trim($motivo)) < 5) {
+            throw new DomainException('Explique o motivo do estorno.');
+        }
+        $caixa = Caixa::aberto();
+        if ($conta->forma_recebida === 'dinheiro' && ! $caixa) {
+            throw new DomainException('Abra o caixa para devolver dinheiro.');
+        }
+        DB::transaction(function () use ($conta, $motivo, $caixa) {
+            $conta->update(['status' => 'estornada']);
+            $this->lancarNoCaixa($caixa, 'estorno', $conta->forma_recebida ?: 'pix', $conta->valor_centavos, 'Estorno: '.$conta->descricao.' ('.mb_substr($motivo, 0, 80).')', contaReceber: $conta->id);
+            if ($conta->ordem_servico_id && ($os = OrdemServico::find($conta->ordem_servico_id))) {
+                $os->registrar('Recebimento estornado: '.Dinheiro::formatar($conta->valor_centavos).' ('.mb_substr($motivo, 0, 120).')');
+            }
+        });
+    }
+
     public function pagarConta(ContaPagar $conta, string $forma): void
     {
         if ($conta->status !== 'aberta') {

@@ -73,6 +73,7 @@
                         @foreach ([30 => '30 min', 60 => '1 hora', 90 => '1h30', 120 => '2 horas', 180 => '3 horas', 240 => '4 horas', 480 => 'Dia todo'] as $m => $r)<option value="{{ $m }}" @selected((int) old('duracao_minutos', $f->duracao_minutos) === $m)>{{ $r }}</option>@endforeach
                     </select>
                 </label>
+                <label class="flex items-center gap-2 text-[15px] sm:col-span-6"><input type="checkbox" name="encaixar" value="1" class="h-4 w-4 accent-asfalto"> Encaixar mesmo assim (passa da capacidade de {{ auth()->user()->empresa->agenda_capacidade }} carros no mesmo horário)</label>
                 <label class="campo sm:col-span-6"><span>Observações</span><textarea name="observacoes" rows="2" class="input">{{ old('observacoes', $f->observacoes) }}</textarea></label>
                 <div class="flex flex-wrap gap-2 sm:col-span-6">
                     <button class="btn-primario">{{ $editando ? 'Salvar' : 'Agendar' }}</button>

@@ -13,13 +13,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->web(append: [DefinirEmpresa::class]);
+        $middleware->web(append: [DefinirEmpresa::class, \App\Http\Middleware\ExigirDoisFatores::class, \App\Http\Middleware\VerificarAssinatura::class]);
         // A empresa precisa estar definida antes do route model binding,
         // senão /clientes/{cliente} buscaria sem o filtro de empresa (e daria 404).
         $middleware->prependToPriorityList(
             before: \Illuminate\Routing\Middleware\SubstituteBindings::class,
             prepend: DefinirEmpresa::class,
         );
+        $middleware->validateCsrfTokens(except: ['webhooks/*']);
         $middleware->redirectGuestsTo(fn () => route('login'));
         $middleware->redirectUsersTo(fn () => route('painel'));
     })

@@ -65,6 +65,9 @@
                     @if ($st === StatusOs::Aguardando && $os->enviado_em)
                         <div class="text-sm text-suave">Enviado {{ $os->enviado_em->diffForHumans() }}</div>
                     @endif
+                    @if ($pendentes->isNotEmpty() && $os->token_expira_em)
+                        <div @class(['text-sm', 'text-erro font-semibold' => ! $os->linkValido(), 'text-suave' => $os->linkValido()])>{{ $os->linkValido() ? 'Link do cliente válido até '.$os->token_expira_em->format('d/m/Y') : 'O link do cliente expirou. Gere um novo.' }}</div>
+                    @endif
                 </div>
                 <div class="flex flex-wrap gap-2">
                     @if ($podeEditar && $os->itens->isNotEmpty() && $pendentes->isNotEmpty() && in_array($st, [StatusOs::Orcamento, StatusOs::Aguardando, StatusOs::Aprovada, StatusOs::EmServico], true))
@@ -79,6 +82,7 @@
                             </form>
                         @endif
                         <button type="button" class="btn" data-copiar="{{ $os->linkAprovacao() }}">Copiar link</button>
+                        <form method="post" action="{{ route('os.acao', [$os, 'novo-link']) }}" data-confirmar="Gerar um link novo? O link enviado antes deixa de funcionar.">@csrf<button class="btn btn-sm text-suave" title="Desativa o link anterior">Novo link</button></form>
                     @endif
                     @if ($st === StatusOs::Aprovada && $pendentes->isEmpty() && $podeExecutar)
                         <form method="post" action="{{ route('os.acao', [$os, 'iniciar']) }}">@csrf<button class="btn-primario">Iniciar serviço</button></form>
@@ -218,7 +222,7 @@
                             <select name="produto_id" class="input" data-estoque>
                                 <option value="">Peça fora do estoque (escrever à mão)</option>
                                 @foreach ($produtos as $p)
-                                    <option value="{{ $p->id }}" data-preco="{{ Dinheiro::campo($p->preco_centavos) }}" data-nome="{{ $p->nome }}">{{ $p->nome }} · {{ Dinheiro::formatar($p->preco_centavos) }} · tem {{ $p->estoqueFormatado() }}</option>
+                                    <option value="{{ $p->id }}" data-preco="{{ Dinheiro::campo($p->preco_centavos) }}" data-nome="{{ $p->nome }}">{{ $p->nome }} · {{ Dinheiro::formatar($p->preco_centavos) }} · disponível {{ \App\Models\Produto::formatarQtd($p->disponivel()) }} {{ $p->unidade }}</option>
                                 @endforeach
                             </select>
                         </label>
@@ -289,6 +293,47 @@
                     </ul>
                 </section>
             @endif
+
+            @if ($os->aceites->isNotEmpty())
+                <section class="card card-corpo">
+                    <h2 class="mb-1">Aprovações registradas</h2>
+                    <p class="mb-3 text-sm text-suave">Cópia do que foi aprovado em cada momento, com data, origem e versão do orçamento.</p>
+                    <ul class="space-y-3 text-[15px]">
+                        @foreach ($os->aceites as $a)
+                            <li class="rounded-md border border-linha px-3 py-2">
+                                <div class="flex flex-wrap justify-between gap-2">
+                                    <span class="font-semibold">{{ $a->nome }}</span>
+                                    <span class="text-sm text-suave">{{ $a->created_at->format('d/m/Y H:i') }} · {{ $a->canal === 'link' ? 'pelo link'.($a->ip ? ' · IP '.$a->ip : '') : 'no balcão/telefone' }} · versão {{ $a->versao }}</span>
+                                </div>
+                                <div class="mt-1 text-sm">
+                                    @foreach ($a->itens as $i)
+                                        <span @class(['mr-2 inline-block', 'text-ok' => $i['decisao'] === 'aprovado', 'text-suave line-through' => $i['decisao'] !== 'aprovado'])>{{ $i['descricao'] }} ({{ Dinheiro::formatar($i['total_centavos']) }})</span>
+                                    @endforeach
+                                </div>
+                                @unless ($a->integro())<p class="mt-1 text-sm font-semibold text-erro">Atenção: este registro foi alterado fora do sistema.</p>@endunless
+                            </li>
+                        @endforeach
+                    </ul>
+                </section>
+            @endif
+
+            @can('financeiro.ver')
+                @php
+                    $custoPecas = (int) $os->itens->where('situacao', 'aprovado')->where('tipo', 'peca')->sum(fn ($i) => (int) round((float) $i->quantidade * (int) ($i->produto?->custo_centavos ?? 0)));
+                    $semCusto = $os->itens->where('situacao', 'aprovado')->where('tipo', 'peca')->contains(fn ($i) => ! $i->produto || ! $i->produto->custo_centavos);
+                @endphp
+                @if ($os->itens->where('situacao', 'aprovado')->isNotEmpty())
+                    <section class="card card-corpo">
+                        <h2 class="mb-2">Margem desta OS</h2>
+                        <dl class="grid grid-cols-3 gap-3 text-[15px]">
+                            <div><dt class="text-sm text-suave">Total</dt><dd class="font-semibold">{{ $os->totalFormatado() }}</dd></div>
+                            <div><dt class="text-sm text-suave">Custo das peças</dt><dd class="font-semibold">{{ Dinheiro::formatar($custoPecas) }}</dd></div>
+                            <div><dt class="text-sm text-suave">Margem bruta</dt><dd class="font-semibold">{{ Dinheiro::formatar($os->total_centavos - $custoPecas) }}@if($os->total_centavos) <span class="text-sm font-normal text-suave">({{ number_format(($os->total_centavos - $custoPecas) / $os->total_centavos * 100, 0) }}%)</span>@endif</dd></div>
+                        </dl>
+                        @if ($semCusto)<p class="mt-2 text-xs text-suave">Há peça sem custo cadastrado; a margem real é menor.</p>@endif
+                    </section>
+                @endif
+            @endcan
 
             {{-- Notas fiscais --}}
             @if ($os->recebido_em && auth()->user()->can('notas.emitir') && $st !== StatusOs::Cancelada)
@@ -438,6 +483,18 @@
                         @endforeach
                     </ul>
                 </section>
+            @endif
+
+            @if ($st === StatusOs::Entregue && auth()->user()->can('os.cancelar'))
+                <details class="card card-corpo">
+                    <summary class="cursor-pointer text-[15px] font-semibold">Reabrir OS</summary>
+                    <p class="mt-2 text-sm text-suave">Volta para "Pronta", devolve as peças ao estoque e retira comissões ainda não pagas. O pagamento continua registrado.</p>
+                    <form method="post" action="{{ route('os.acao', [$os, 'reabrir']) }}" class="mt-3 space-y-3" data-confirmar="Reabrir esta OS?">
+                        @csrf
+                        <label class="campo"><span>Motivo</span><input name="motivo" class="input" required maxlength="200"></label>
+                        <button class="btn btn-sm">Reabrir OS</button>
+                    </form>
+                </details>
             @endif
 
             @if ($st->noPatio() && auth()->user()->can('os.cancelar'))

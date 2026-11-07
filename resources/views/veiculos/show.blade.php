@@ -9,7 +9,7 @@
         @can('os.editar')<a href="{{ route('os.create', ['veiculo_id' => $veiculo->id]) }}" class="btn-primario">Abrir OS</a>@endcan
     </div>
 
-    <div class="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
+    <div class="grid gap-6 lg:grid-cols-[1.3fr_1fr] [&>*]:min-w-0">
         <section class="card card-corpo">
             <h2 class="mb-4">Dados do veículo</h2>
             <dl class="grid grid-cols-2 gap-x-6 gap-y-4 text-[15px] sm:grid-cols-3">

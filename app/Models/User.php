@@ -19,7 +19,7 @@ class User extends Authenticatable
 
     protected $fillable = ['empresa_id', 'loja_id', 'name', 'email', 'telefone', 'perfil', 'comissao_percentual', 'ativo', 'password'];
 
-    protected $hidden = ['password', 'remember_token'];
+    protected $hidden = ['dois_fatores_segredo', 'dois_fatores_recuperacao', 'password', 'remember_token'];
 
     protected function casts(): array
     {
@@ -30,6 +30,10 @@ class User extends Authenticatable
             'perfil' => Perfil::class,
             'ativo' => 'boolean',
             'comissao_percentual' => 'decimal:2',
+            'admin_plataforma' => 'boolean',
+            'dois_fatores_segredo' => 'encrypted',
+            'dois_fatores_recuperacao' => 'encrypted:array',
+            'dois_fatores_ativo_em' => 'datetime',
         ];
     }
 
@@ -46,6 +50,22 @@ class User extends Authenticatable
     public function pode(string $permissao): bool
     {
         return $this->ativo && $this->perfil->pode($permissao);
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new \App\Notifications\RedefinirSenha($token));
+    }
+
+    public function doisFatoresAtivo(): bool
+    {
+        return $this->dois_fatores_ativo_em !== null && $this->dois_fatores_segredo;
+    }
+
+    /** Admin da plataforma e dono precisam de verificação em duas etapas. */
+    public function exigeDoisFatores(): bool
+    {
+        return (bool) $this->admin_plataforma;
     }
 
     public static function daEmpresaAtual()

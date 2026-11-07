@@ -50,6 +50,19 @@ class Produto extends Model
         });
     }
 
+    /** Quantidade já prometida em OS aprovadas que ainda não foram entregues. */
+    public function reservado(): float
+    {
+        return (float) OrdemServicoItem::where('produto_id', $this->id)->where('situacao', 'aprovado')->where('estoque_baixado', false)
+            ->whereHas('ordemServico', fn ($q) => $q->whereIn('status', ['aprovada', 'em_servico', 'pronta']))
+            ->sum('quantidade');
+    }
+
+    public function disponivel(): float
+    {
+        return round((float) $this->estoque - $this->reservado(), 3);
+    }
+
     public function noMinimo(): bool
     {
         return (float) $this->estoque_minimo > 0 && (float) $this->estoque <= (float) $this->estoque_minimo;

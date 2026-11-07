@@ -48,9 +48,14 @@ class OrdemServicoItemController extends Controller
             'situacao' => 'pendente',
         ]);
         $os->recalcular();
+        $os->alterouOrcamento();
+        $aviso = null;
+        if ($produto && ($disp = $produto->disponivel()) < (float) $dados['quantidade']) {
+            $aviso = ' Atenção: só há '.\App\Models\Produto::formatarQtd($disp).' '.$produto->unidade.' disponível no estoque.';
+        }
         $os->registrar(($os->aprovado_em ? 'Item adicional: ' : 'Item incluído: ').$item->descricao);
 
-        return back()->with('ok', $item->descricao.' incluído.')->withFragment('itens');
+        return back()->with('ok', $item->descricao.' incluído.'.($aviso ?? ''))->withFragment('itens');
     }
 
     public function destroy(OrdemServico $os, OrdemServicoItem $item)
@@ -66,6 +71,7 @@ class OrdemServicoItemController extends Controller
 
         $item->delete();
         $os->recalcular();
+        $os->alterouOrcamento();
         $os->registrar('Item removido: '.$item->descricao);
 
         return back()->with('ok', 'Item removido.')->withFragment('itens');

@@ -19,6 +19,9 @@ class OrcamentoPublicoController extends Controller
     public function ver(string $token)
     {
         $os = $this->os($token);
+        if (! $os->linkValido()) {
+            return response()->view('orcamento.expirado', ['empresa' => Empresa::find($os->empresa_id)], 410)->header('X-Robots-Tag', 'noindex, nofollow');
+        }
         $os->load(['veiculo', 'cliente', 'itens', 'fotos']);
 
         return response()->view('orcamento.ver', [
@@ -30,7 +33,11 @@ class OrcamentoPublicoController extends Controller
     public function aprovar(Request $request, string $token)
     {
         $os = $this->os($token);
+        if (! $os->linkValido()) {
+            return redirect()->route('orcamento.ver', $token);
+        }
         $dados = $request->validate([
+            'versao' => ['required', 'integer'],
             'nome' => ['required', 'string', 'min:2', 'max:120'],
             'itens' => ['nullable', 'array'],
             'itens.*' => ['integer'],
@@ -43,7 +50,7 @@ class OrcamentoPublicoController extends Controller
         }
 
         try {
-            $os->aprovar($ids, trim($dados['nome']).' (pelo link)', $request->ip());
+            $os->aprovar($ids, trim($dados['nome']).' (pelo link)', $request->ip(), 'link', $request->userAgent(), (int) $dados['versao']);
         } catch (DomainException $e) {
             return back()->with('erro', $e->getMessage());
         }
@@ -54,6 +61,7 @@ class OrcamentoPublicoController extends Controller
     public function foto(string $token, int $foto)
     {
         $os = $this->os($token); // define a empresa antes de buscar a foto
+        abort_unless($os->linkValido(), 404);
 
         return OrdemServicoFotoController::enviar($os, OrdemServicoFoto::findOrFail($foto));
     }
@@ -61,7 +69,7 @@ class OrcamentoPublicoController extends Controller
     private function os(string $token): OrdemServico
     {
         $os = OrdemServico::porToken($token);
-        abort_if(! $os || $os->status === StatusOs::Cancelada, 404);
+        abort_if(! $os, 404);
         abort_unless(Tenant::id() === $os->empresa_id, 404);
 
         return $os;

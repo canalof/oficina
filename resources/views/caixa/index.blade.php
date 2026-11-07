@@ -29,7 +29,7 @@
             </div>
         </div>
 
-        <div class="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+        <div class="grid gap-6 lg:grid-cols-[1.6fr_1fr] [&>*]:min-w-0">
             <section class="card overflow-x-auto">
                 <div class="border-b border-linha px-5 py-4"><h2>Movimentações deste caixa</h2></div>
                 @include('caixa._movimentos')

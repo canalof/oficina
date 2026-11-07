@@ -49,6 +49,8 @@ class EmpresaController extends Controller
             'aliquota_iss' => ['required', 'numeric', 'min:0', 'max:10'],
             'fiscal_ambiente' => ['required', 'in:homologacao,producao'],
             'whatsapp_instancia' => ['nullable', 'string', 'max:80'],
+            'agenda_capacidade' => ['required', 'integer', 'min:1', 'max:50'],
+            'orcamento_validade_dias' => ['required', 'integer', 'min:1', 'max:90'],
         ], [], ['nome_fantasia' => 'nome fantasia', 'razao_social' => 'razão social', 'codigo_municipio' => 'código do município', 'aliquota_iss' => 'alíquota do ISS']);
 
         // O token só é trocado quando algo novo é digitado (nunca volta para a tela)
@@ -58,6 +60,7 @@ class EmpresaController extends Controller
         if ($request->boolean('remover_token')) {
             $dados['fiscal_token'] = null;
         }
+        $dados['estoque_negativo'] = $request->boolean('estoque_negativo');
         $empresa->update($dados);
 
         return back()->with('ok', 'Dados da empresa salvos.');
