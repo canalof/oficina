@@ -17,12 +17,23 @@ function mascaraTelefone(v) {
     return d.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2');
 }
 
+// "123456" -> "1.234,56"
+function mascaraDinheiro(v) {
+    const d = soDigitos(v).replace(/^0+(?=\d)/, '');
+    if (!d) return '';
+    const n = d.padStart(3, '0');
+    return n.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + n.slice(-2);
+}
+
+const reais = (centavos) => (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
 document.addEventListener('input', (e) => {
     const el = e.target;
     if (el.matches('[data-mascara=documento]')) el.value = mascaraDocumento(el.value);
     if (el.matches('[data-mascara=telefone]')) el.value = mascaraTelefone(el.value);
     if (el.matches('[data-mascara=cep]')) el.value = soDigitos(el.value).slice(0, 8).replace(/(\d{5})(\d)/, '$1-$2');
     if (el.matches('[data-mascara=placa]')) el.value = el.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 7);
+    if (el.matches('[data-mascara=dinheiro]')) el.value = mascaraDinheiro(el.value);
     if (el.matches('[data-mascara=km]')) el.value = soDigitos(el.value).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 });
 
@@ -44,8 +55,10 @@ document.addEventListener('focusout', async (e) => {
 
 // Confirmação antes de ações destrutivas
 document.addEventListener('submit', (e) => {
-    const msg = e.target.getAttribute('data-confirmar');
-    if (msg && !window.confirm(msg)) e.preventDefault();
+    const msg = e.submitter?.getAttribute('data-confirmar') || e.target.getAttribute('data-confirmar');
+    if (msg && !window.confirm(msg)) { e.preventDefault(); return; }
+    // Formulário que abre em outra aba (ex.: WhatsApp): recarrega esta para mostrar a nova situação
+    if (e.target.target === '_blank' && e.target.querySelector('[data-recarregar]')) setTimeout(() => location.reload(), 1500);
 });
 
 // Menu no celular
@@ -86,4 +99,47 @@ if (form) {
         buscar(p);
     });
     if (input.value.length === 7) form.requestSubmit();
+}
+
+// Copiar link (orçamento para o cliente)
+document.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-copiar]');
+    if (!b) return;
+    const texto = b.getAttribute('data-copiar');
+    try { await navigator.clipboard.writeText(texto); } catch (_) { window.prompt('Copie o link:', texto); return; }
+    const antes = b.textContent;
+    b.textContent = 'Link copiado';
+    setTimeout(() => { b.textContent = antes; }, 2000);
+});
+
+// OS: ao escolher um serviço do catálogo, preenche descrição e valor; peça esconde o catálogo
+const itemForm = document.querySelector('[data-item-form]');
+if (itemForm) {
+    const catalogo = itemForm.querySelector('[data-catalogo]');
+    const soServico = itemForm.querySelector('[data-so-servico]');
+    catalogo?.addEventListener('change', () => {
+        const op = catalogo.selectedOptions[0];
+        if (!op?.value) return;
+        itemForm.querySelector('[name=descricao]').value = op.dataset.nome;
+        itemForm.querySelector('[name=valor]').value = op.dataset.preco;
+    });
+    const atualizarTipo = () => {
+        const peca = itemForm.querySelector('[name=tipo]:checked')?.value === 'peca';
+        if (soServico) soServico.hidden = peca;
+        if (peca && catalogo) catalogo.value = '';
+    };
+    itemForm.addEventListener('change', (e) => { if (e.target.name === 'tipo') atualizarTipo(); });
+    atualizarTipo();
+}
+
+// Página do orçamento do cliente: total muda conforme marca/desmarca
+const orc = document.querySelector('[data-orcamento]');
+if (orc) {
+    const total = orc.querySelector('[data-orcamento-total]');
+    const somar = () => {
+        let t = parseInt(total.dataset.base, 10) || 0;
+        orc.querySelectorAll('input[name="itens[]"]:checked').forEach((c) => { t += parseInt(c.dataset.valor, 10) || 0; });
+        total.textContent = reais(Math.max(0, t));
+    };
+    orc.addEventListener('change', somar);
 }

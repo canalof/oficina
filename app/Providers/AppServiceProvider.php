@@ -7,7 +7,10 @@ use App\Services\Placa\ConsultaDePlacaNet;
 use App\Services\Placa\PlacaDemonstracao;
 use App\Services\Placa\ProvedorPlaca;
 use App\Support\Perfil;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -32,6 +35,15 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Limites separados: cada um com sua própria contagem
+        RateLimiter::for('login', fn (Request $r) => [
+            Limit::perMinute(6)->by('login|'.mb_strtolower((string) $r->input('email')).'|'.$r->ip()),
+            Limit::perMinute(30)->by('login-ip|'.$r->ip()),
+        ]);
+        RateLimiter::for('placa', fn (Request $r) => Limit::perMinute(30)->by('placa|'.($r->user()?->id ?? $r->ip())));
+        RateLimiter::for('orcamento', fn (Request $r) => Limit::perMinute(60)->by('orcamento|'.$r->ip()));
+        RateLimiter::for('orcamento-aprovar', fn (Request $r) => Limit::perMinute(10)->by('orcamento-aprovar|'.$r->route('token').'|'.$r->ip()));
+
         if ($proxies = config('app.trusted_proxies')) {
             \Illuminate\Http\Middleware\TrustProxies::at($proxies === '*' ? '*' : explode(',', $proxies));
         }

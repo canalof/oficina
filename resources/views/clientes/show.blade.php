@@ -40,6 +40,13 @@
         </section>
     </div>
 
+    @can('os.ver')
+        <section class="card mt-6">
+            <div class="border-b border-linha px-5 py-4"><h2>Ordens de serviço</h2></div>
+            @include('os._historico', ['ordens' => $cliente->ordens()->with(['itens', 'veiculo'])->limit(30)->get(), 'mostrarPlaca' => true])
+        </section>
+    @endcan
+
     @can('clientes.excluir')
         @if ($cliente->veiculos->isEmpty())
             <form method="post" action="{{ route('clientes.destroy', $cliente) }}" class="mt-8" data-confirmar="Excluir este cliente?">

@@ -13,11 +13,46 @@
         @endcan
     </div>
 
+    @can('os.ver')
+        @php($patio = \App\Support\StatusOs::doPatio())
+        <a href="{{ route('os.index') }}" class="card mb-4 block hover:border-asfalto-3">
+            <div class="flex items-center justify-between border-b border-linha px-5 py-3">
+                <h2>No pátio agora</h2>
+                <span class="text-sm font-semibold text-asfalto-3">Ver quadro</span>
+            </div>
+            <div class="grid grid-cols-5 divide-x divide-linha">
+                @foreach ($patio as $st)
+                    <div class="px-3 py-3 sm:px-5">
+                        <div @class(['text-3xl font-semibold', 'text-sinal-escuro' => $st === \App\Support\StatusOs::Aguardando && ($porStatus[$st->value] ?? 0) > 0, 'text-ok' => $st === \App\Support\StatusOs::Pronta && ($porStatus[$st->value] ?? 0) > 0])>{{ $porStatus[$st->value] ?? 0 }}</div>
+                        <div class="truncate text-xs text-suave sm:text-sm">{{ $st === \App\Support\StatusOs::Pronta ? 'Prontos' : $st->rotulo() }}</div>
+                    </div>
+                @endforeach
+            </div>
+        </a>
+
+        @if ($atrasadas->isNotEmpty())
+            <div class="card mb-4 border-l-4 border-l-erro">
+                <div class="border-b border-linha px-5 py-3"><h2>Passou da previsão de entrega</h2></div>
+                <ul class="divide-y divide-linha">
+                    @foreach ($atrasadas as $o)
+                        <li><a href="{{ route('os.show', $o) }}" class="flex items-center gap-4 px-5 py-2.5 hover:bg-[#fafbfc]">
+                            <x-placa :placa="$o->veiculo->placa" />
+                            <span class="min-w-0 flex-1 truncate">{{ $o->cliente?->nome ?? $o->veiculo->descricao() }} · {{ $o->status->rotulo() }}</span>
+                            <span class="whitespace-nowrap text-sm font-semibold text-erro">{{ $o->previsao_entrega->format('d/m H:i') }}</span>
+                        </a></li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+    @endcan
+
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        @can('os.ver')
+            <div class="card card-corpo"><div class="text-sm text-suave">Carros entregues no mês</div><div class="mt-1 text-3xl font-semibold">{{ $entreguesMes }}</div><div class="text-sm text-suave">R$ {{ number_format($valorEntreguesMes / 100, 2, ',', '.') }} em serviços</div></div>
+        @endcan
         <div class="card card-corpo"><div class="text-sm text-suave">Clientes</div><div class="mt-1 text-3xl font-semibold">{{ number_format($totalClientes, 0, ',', '.') }}</div><div class="text-sm text-suave">+{{ $clientesMes }} neste mês</div></div>
         <div class="card card-corpo"><div class="text-sm text-suave">Veículos</div><div class="mt-1 text-3xl font-semibold">{{ number_format($totalVeiculos, 0, ',', '.') }}</div><div class="text-sm text-suave">+{{ $veiculosMes }} neste mês</div></div>
-        <div class="card card-corpo"><div class="text-sm text-suave">Consultas de placa no mês</div><div class="mt-1 text-3xl font-semibold">{{ $consultasMes }}</div><div class="text-sm text-suave">placas novas consultadas</div></div>
-        <div class="card card-corpo"><div class="text-sm text-suave">Gasto com consulta de placa</div><div class="mt-1 text-3xl font-semibold">R$ {{ number_format($gastoPlacaMes / 100, 2, ',', '.') }}</div><div class="text-sm text-suave">neste mês</div></div>
+        <div class="card card-corpo"><div class="text-sm text-suave">Consulta de placa no mês</div><div class="mt-1 text-3xl font-semibold">{{ $consultasMes }}</div><div class="text-sm text-suave">R$ {{ number_format($gastoPlacaMes / 100, 2, ',', '.') }} gastos</div></div>
     </div>
 
     <div class="card mt-6">

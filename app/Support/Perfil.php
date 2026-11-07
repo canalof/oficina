@@ -32,11 +32,11 @@ enum Perfil: string
     {
         return match ($this) {
             self::Dono => ['*'],
-            self::Gerente => ['clientes.ver', 'clientes.editar', 'clientes.excluir', 'veiculos.ver', 'veiculos.editar', 'veiculos.excluir', 'placa.consultar', 'usuarios.gerenciar', 'auditoria.ver'],
-            self::Consultor => ['clientes.ver', 'clientes.editar', 'veiculos.ver', 'veiculos.editar', 'placa.consultar'],
-            self::Mecanico => ['clientes.ver', 'veiculos.ver'],
-            self::Caixa => ['clientes.ver', 'clientes.editar', 'veiculos.ver'],
-            self::Estoquista => ['veiculos.ver'],
+            self::Gerente => ['clientes.ver', 'clientes.editar', 'clientes.excluir', 'veiculos.ver', 'veiculos.editar', 'veiculos.excluir', 'placa.consultar', 'os.ver', 'os.editar', 'os.executar', 'os.cancelar', 'servicos.gerenciar', 'usuarios.gerenciar', 'auditoria.ver'],
+            self::Consultor => ['clientes.ver', 'clientes.editar', 'veiculos.ver', 'veiculos.editar', 'placa.consultar', 'os.ver', 'os.editar', 'os.executar'],
+            self::Mecanico => ['clientes.ver', 'veiculos.ver', 'os.ver', 'os.executar'],
+            self::Caixa => ['clientes.ver', 'clientes.editar', 'veiculos.ver', 'os.ver'],
+            self::Estoquista => ['veiculos.ver', 'os.ver'],
         };
     }
 
@@ -54,6 +54,7 @@ enum Perfil: string
             'clientes.ver', 'clientes.editar', 'clientes.excluir',
             'veiculos.ver', 'veiculos.editar', 'veiculos.excluir',
             'placa.consultar', 'usuarios.gerenciar', 'empresa.configurar', 'auditoria.ver',
+            'os.ver', 'os.editar', 'os.executar', 'os.cancelar', 'servicos.gerenciar',
         ];
     }
 
