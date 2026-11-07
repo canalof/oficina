@@ -25,6 +25,20 @@ class AoEntregar
 
     private function baixarEstoque(OrdemServico $os): void
     {
+        $permiteNegativo = (bool) (\App\Models\Empresa::whereKey($os->empresa_id)->value('estoque_negativo') ?? true);
+        if (! $permiteNegativo) {
+            $faltam = [];
+            foreach ($os->itens->where('situacao', 'aprovado')->where('estoque_baixado', false)->whereNotNull('produto_id')->groupBy('produto_id') as $itens) {
+                $p = $itens->first()->produto;
+                $precisa = (float) $itens->sum('quantidade');
+                if ($p && (float) $p->fresh()->estoque < $precisa) {
+                    $faltam[] = $p->nome.' (tem '.\App\Models\Produto::formatarQtd($p->fresh()->estoque).', precisa '.\App\Models\Produto::formatarQtd($precisa).')';
+                }
+            }
+            if ($faltam) {
+                throw new \DomainException('Estoque insuficiente: '.implode('; ', $faltam).'. Dê entrada nas peças antes de entregar.');
+            }
+        }
         foreach ($os->itens as $item) {
             if ($item->situacao !== 'aprovado' || ! $item->produto_id || $item->estoque_baixado || ! $item->produto) {
                 continue;

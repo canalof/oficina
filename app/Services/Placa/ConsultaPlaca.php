@@ -36,6 +36,13 @@ class ConsultaPlaca
             return ['dados' => DadosVeiculo::fromArray($recente->resposta), 'origem' => 'cache'];
         }
 
+        // Limite mensal do plano (só conta consulta paga)
+        $limite = \App\Models\Empresa::whereKey(\App\Support\Tenant::id())->first()?->plano?->limite_consultas_placa;
+        if ($limite !== null && $this->provedor->nome() !== 'demonstracao'
+            && PlacaConsulta::where('created_at', '>=', now()->startOfMonth())->where('custo_centavos', '>', 0)->count() >= $limite) {
+            throw new ConsultaPlacaIndisponivel("O plano chegou ao limite de {$limite} consultas de placa neste mês. Preencha os dados à mão ou troque de plano.");
+        }
+
         try {
             $dados = $this->provedor->consultar($placa);
         } catch (ConsultaPlacaIndisponivel $e) {

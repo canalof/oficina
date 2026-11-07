@@ -10,6 +10,22 @@
         <div class="card card-corpo"><div class="text-sm text-suave">Entrou no caixa e banco</div><div class="mt-1 text-3xl font-semibold text-ok">{{ Dinheiro::formatar($recebido) }}</div></div>
         <div class="card card-corpo"><div class="text-sm text-suave">Saiu (contas pagas)</div><div class="mt-1 text-3xl font-semibold text-erro">{{ Dinheiro::formatar($pago) }}</div><div class="text-sm text-suave">saldo {{ Dinheiro::formatar($recebido - $pago) }}</div></div>
     </div>
+    <section class="card card-corpo mb-6">
+        <h2 class="mb-3">Resultado das OS entregues</h2>
+        <dl class="grid gap-4 text-[15px] sm:grid-cols-4">
+            <div><dt class="text-sm text-suave">Faturado</dt><dd class="text-xl font-semibold">{{ Dinheiro::formatar($faturado) }}</dd></div>
+            <div><dt class="text-sm text-suave">(−) Custo das peças</dt><dd class="text-xl font-semibold">{{ Dinheiro::formatar($custoPecas) }}</dd></div>
+            <div><dt class="text-sm text-suave">(−) Comissões</dt><dd class="text-xl font-semibold">{{ Dinheiro::formatar($comissoesMes) }}</dd></div>
+            <div><dt class="text-sm text-suave">= Margem de contribuição</dt><dd class="text-xl font-semibold">{{ Dinheiro::formatar($faturado - $custoPecas - $comissoesMes) }}@if($faturado)<span class="text-sm font-normal text-suave"> ({{ number_format(($faturado - $custoPecas - $comissoesMes) / $faturado * 100, 0) }}%)</span>@endif</dd></div>
+        </dl>
+        <p class="mt-2 text-xs text-suave">Gerencial, não substitui a contabilidade. Custo das peças pelo custo no momento da baixa; despesas fixas estão em "Despesas por categoria".</p>
+        <div class="mt-4 flex flex-wrap gap-2">
+            @foreach (['os' => 'OS do mês', 'receber' => 'Contas a receber', 'pagar' => 'Contas a pagar'] as $t => $r)
+                <a href="{{ route('exportar', ['tipo' => $t, 'mes' => $mes->format('Y-m')]) }}" class="btn btn-sm">Baixar planilha: {{ $r }}</a>
+            @endforeach
+        </div>
+    </section>
+
     <div class="grid gap-6 lg:grid-cols-2">
         <section class="card card-corpo">
             <h2 class="mb-3">Recebido por forma</h2>

@@ -1,3 +1,4 @@
+import QRCode from 'qrcode';
 // Máscaras simples e utilidades das telas (sem framework)
 
 const soDigitos = (v) => (v || '').replace(/\D/g, '');
@@ -189,3 +190,8 @@ if (pag) {
 
 // Agenda no celular: mostra o dia de hoje
 document.querySelector('[data-hoje]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+
+// QR code da verificação em duas etapas (gerado no navegador, a chave não sai daqui)
+document.querySelectorAll('canvas[data-qrcode]').forEach((c) => {
+    QRCode.toCanvas(c, c.dataset.qrcode, { width: 180, margin: 1 });
+});

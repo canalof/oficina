@@ -32,7 +32,7 @@
             <x-placa :placa="$os->veiculo->placa" tamanho="md" />
             <div class="min-w-0">
                 <h1 class="text-xl">{{ $os->veiculo->descricao() ?: 'Seu veículo' }}</h1>
-                <p class="text-suave">Orçamento nº {{ $os->numeroFormatado() }} · {{ $os->created_at->format('d/m/Y') }}</p>
+                <p class="text-suave">Orçamento nº {{ $os->numeroFormatado() }} · {{ $os->created_at->format('d/m/Y') }}@if($os->token_expira_em) · válido até {{ $os->token_expira_em->format('d/m/Y') }}@endif</p>
             </div>
         </div>
 
@@ -65,6 +65,7 @@
         @if ($pendentes->isNotEmpty())
             <form method="post" action="{{ route('orcamento.aprovar', $os->token) }}" class="card" data-orcamento>
                 @csrf
+                <input type="hidden" name="versao" value="{{ $os->versao }}">
                 <ul class="divide-y divide-linha">
                     @foreach ($pendentes as $item)
                         <li>
@@ -94,7 +95,7 @@
                     @error('itens')<p class="erro-msg">{{ $message }}</p>@enderror
 
                     <label class="campo mt-4"><span>Seu nome, para confirmar</span>
-                        <input name="nome" value="{{ old('nome', $os->cliente?->nome) }}" class="input @error('nome') input-erro @enderror" required maxlength="120" autocomplete="name">
+                        <input name="nome" value="{{ old('nome') }}" class="input @error('nome') input-erro @enderror" required maxlength="120" autocomplete="name">
                     </label>
                     @error('nome')<p class="erro-msg">{{ $message }}</p>@enderror
 

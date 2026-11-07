@@ -13,7 +13,7 @@
         </div>
     </div>
 
-    <div class="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
+    <div class="grid gap-6 lg:grid-cols-[1fr_1.4fr] [&>*]:min-w-0">
         <section class="card card-corpo">
             <h2 class="mb-4">Contato e endereço</h2>
             <dl class="space-y-3 text-[15px]">
@@ -39,6 +39,24 @@
             @endforelse
         </section>
     </div>
+
+    @can('clientes.editar')
+        <section class="card card-corpo mt-6">
+            <h2 class="mb-1">Portal do cliente</h2>
+            <p class="mb-3 text-sm text-suave">Link pessoal, sem senha, com os carros, serviços, garantias e próximas revisões. Só envie para o próprio cliente.</p>
+            @if ($cliente->portal_token)
+                @php $link = route('portal.ver', $cliente->portal_token); @endphp
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-sm" data-copiar="{{ $link }}">Copiar link</button>
+                    @if ($cliente->aceita_whatsapp && ($w = $cliente->linkWhatsapp('Olá, '.explode(' ', $cliente->nome)[0].'! Aqui você acompanha os serviços e as garantias dos seus carros na '.auth()->user()->empresa->nome_fantasia.': '.$link)))<a href="{{ $w }}" target="_blank" rel="noopener" class="btn btn-sm">Enviar pelo WhatsApp</a>@endif
+                    <form method="post" action="{{ route('clientes.portal', $cliente) }}" data-confirmar="Gerar outro link? O atual deixa de funcionar.">@csrf<button class="btn btn-sm">Gerar outro</button></form>
+                    <form method="post" action="{{ route('clientes.portal.revogar', $cliente) }}">@csrf @method('delete')<button class="btn-perigo btn-sm">Desativar</button></form>
+                </div>
+            @else
+                <form method="post" action="{{ route('clientes.portal', $cliente) }}">@csrf<button class="btn btn-sm">Criar link do portal</button></form>
+            @endif
+        </section>
+    @endcan
 
     @can('os.ver')
         <section class="card mt-6">

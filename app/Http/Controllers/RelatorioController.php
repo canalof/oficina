@@ -45,6 +45,11 @@ class RelatorioController extends Controller
             'pago' => (int) (clone $pago)->sum('valor_centavos'),
             'topServicos' => $topServicos,
             'topPecas' => $topPecas,
+            'custoPecas' => (int) \App\Models\EstoqueMovimento::where('origem', 'os')->whereIn('origem_id', $idsOs)->where('quantidade', '<', 0)
+                ->get()->sum(fn ($m) => (int) round(abs((float) $m->quantidade) * (int) $m->custo_unitario_centavos))
+                - (int) \App\Models\EstoqueMovimento::where('origem', 'os')->whereIn('origem_id', $idsOs)->where('quantidade', '>', 0)
+                ->get()->sum(fn ($m) => (int) round((float) $m->quantidade * (int) $m->custo_unitario_centavos)),
+            'comissoesMes' => (int) \App\Models\Comissao::whereIn('ordem_servico_id', $idsOs)->sum('valor_centavos'),
             'recusadoMes' => (int) OrdemServicoItem::whereIn('ordem_servico_id', $idsOs)->where('situacao', 'recusado')->sum('total_centavos'),
         ]);
     }

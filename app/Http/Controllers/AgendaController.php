@@ -54,6 +54,7 @@ class AgendaController extends Controller
     {
         $this->authorize('agenda.editar');
         $dados = $this->validar($request);
+        $this->verificarLotacao($request, $dados);
         $a = Agendamento::create($dados + ['user_id' => auth()->id()]);
         if ($request->query('lembrete') || $request->input('lembrete_id')) {
             Lembrete::whereKey($request->input('lembrete_id'))->update(['status' => 'agendado']);
@@ -71,7 +72,9 @@ class AgendaController extends Controller
 
             return back()->with('ok', 'Marcado como "'.Agendamento::STATUS[$agendamento->status].'".');
         }
-        $agendamento->update($this->validar($request));
+        $dados = $this->validar($request);
+        $this->verificarLotacao($request, $dados, $agendamento->id);
+        $agendamento->update($dados);
 
         return redirect()->route('agenda.index', ['semana' => $agendamento->inicio->toDateString()])->with('ok', 'Agendamento atualizado.');
     }
@@ -82,6 +85,25 @@ class AgendaController extends Controller
         $agendamento->delete();
 
         return back()->with('ok', 'Agendamento removido.');
+    }
+
+    /** Impede passar da capacidade (boxes/elevadores) no mesmo horário, a menos que marque "encaixar". */
+    private function verificarLotacao(Request $request, array $dados, ?int $ignorar = null): void
+    {
+        if ($request->boolean('encaixar')) {
+            return;
+        }
+        $ini = Carbon::parse($dados['inicio']);
+        $fim = $ini->copy()->addMinutes((int) $dados['duracao_minutos']);
+        $capacidade = max(1, (int) (\App\Models\Empresa::whereKey(Tenant::id())->value('agenda_capacidade') ?: 2));
+        $mesmos = Agendamento::whereDate('inicio', $ini->toDateString())->whereNotIn('status', ['cancelado', 'faltou'])
+            ->when($ignorar, fn ($q) => $q->where('id', '<>', $ignorar))->get()
+            ->filter(fn ($a) => $a->inicio->lt($fim) && $a->inicio->copy()->addMinutes($a->duracao_minutos)->gt($ini));
+        if ($mesmos->count() >= $capacidade) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'inicio' => 'Horário lotado: já há '.$mesmos->count().' carro(s) nesse horário (capacidade '.$capacidade.'). Escolha outro ou marque "Encaixar mesmo assim".',
+            ]);
+        }
     }
 
     private function validar(Request $request): array

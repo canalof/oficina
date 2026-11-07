@@ -36,6 +36,8 @@
             ['notas.index', 'Notas fiscais', 'M6 2h9l5 5v15H6zM14 2v6h6M9 13h6M9 17h6M9 9h2', 'notas.emitir'],
         ],
         'Ajustes' => [
+            ['assinatura', 'Assinatura', 'M2 7h20v12H2zM2 11h20M6 15h4', 'empresa.configurar'],
+            ['plataforma.index', 'Plataforma', 'M12 2l9 5-9 5-9-5 9-5zM3 12l9 5 9-5M3 17l9 5 9-5', 'plataforma'],
             ['usuarios.index', 'Usuários', 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20c0-3 3-5 6-5s6 2 6 5M17 11a3 3 0 0 0 0-6M21 20c0-2-1.5-4-4-4.7', 'usuarios.gerenciar'],
             ['empresa.edit', 'Empresa', 'M4 21V5l8-2 8 2v16M9 21v-4h6v4M8 9h.01M12 9h.01M16 9h.01M8 13h.01M12 13h.01M16 13h.01', 'empresa.configurar'],
         ],
@@ -51,6 +53,9 @@
             </div>
         </div>
         <nav class="min-h-0 flex-1 overflow-y-auto p-3">
+            @if (auth()->user()->admin_plataforma)
+                @php $menu = [null => [['plataforma.index', 'Plataforma', 'M12 2l9 5-9 5-9-5 9-5zM3 12l9 5 9-5M3 17l9 5 9-5', null], ['plataforma.planos', 'Planos', 'M2 7h20v12H2zM2 11h20', null], ['seguranca', 'Segurança', 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z', null]]]; @endphp
+            @endif
             @foreach ($menu as $grupo => $itens)
                 @php $visiveis = collect($itens)->filter(fn ($i) => ! $i[3] || auth()->user()->can($i[3])); @endphp
                 @continue($visiveis->isEmpty())
@@ -71,7 +76,8 @@
             <div class="truncate font-semibold text-white">{{ auth()->user()->name }}</div>
             <div class="text-xs text-[#8d9aa6]">{{ auth()->user()->perfil->rotulo() }}</div>
             <div class="mt-3 flex gap-4">
-                <a href="{{ route('senha') }}" class="hover:text-white">Trocar senha</a>
+                <a href="{{ route('senha') }}" class="hover:text-white">Senha</a>
+                <a href="{{ route('seguranca') }}" class="hover:text-white">Segurança</a>
                 <form method="post" action="{{ route('logout') }}">@csrf<button class="hover:text-white">Sair</button></form>
             </div>
         </div>
@@ -87,6 +93,14 @@
             @can('veiculos.ver')<a href="{{ route('recepcao') }}" class="btn-sinal btn-sm ml-auto">Recepção</a>@endcan
         </header>
         <main class="mx-auto max-w-6xl px-4 py-6 lg:px-8 lg:py-8">
+            @php $emp = auth()->user()->empresa; @endphp
+            @if (! auth()->user()->admin_plataforma && $emp && ! request()->routeIs('assinatura'))
+                @if ($emp->assinatura_status === 'trial' && $emp->diasDeTeste() !== null && $emp->diasDeTeste() <= 5)
+                    <a href="{{ route('assinatura') }}" class="mb-5 block rounded-md border border-[#f0d58a] bg-[#fff7df] px-4 py-2.5 text-[15px] hover:border-sinal">Seu teste grátis termina em {{ $emp->diasDeTeste() }} dia(s). <strong>Escolher plano</strong></a>
+                @elseif ($emp->assinatura_status === 'inadimplente')
+                    <a href="{{ route('assinatura') }}" class="mb-5 block rounded-md border border-[#ecc3bf] bg-[#fcf0ef] px-4 py-2.5 text-[15px] text-[#8c241d]">Há uma fatura do Torque em atraso. Regularize para não ter o acesso suspenso. <strong>Ver fatura</strong></a>
+                @endif
+            @endif
             @include('partials.flash')
             {{ $slot }}
         </main>

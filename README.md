@@ -76,6 +76,16 @@ Este repositório está sendo construído por módulos, um Pull Request por etap
 - **Lembretes de revisão**: no catálogo, cada serviço pode ter prazo (ex.: troca de óleo a cada 6 meses ou 10.000 km). Na entrega do carro, o lembrete é criado sozinho.
 - **WhatsApp automático (opcional)** com a Evolution API: todo dia às 9h envia os lembretes dos próximos 7 dias e confirma os agendamentos do dia seguinte. Sem a Evolution, os botões abrem o WhatsApp com a mensagem pronta.
 
+### Versão 1.1: plataforma SaaS e segurança
+
+- **Cadastro pelo site** com 14 dias de teste grátis, **planos** com limites, **assinatura recorrente** pelo Asaas, faturas, suspensão automática por atraso e painel do administrador da plataforma (`/plataforma`).
+- **Esqueci a senha** e **verificação em duas etapas** (aplicativo autenticador).
+- **Orçamento** com validade, troca de link e registro exato do que o cliente aprovou.
+- **Reserva de peças**, política de estoque negativo, **reabertura de OS**, **estorno** de recebimento, **capacidade da agenda**, registro e novas tentativas do WhatsApp.
+- **Portal do cliente**, **margem por OS**, **planilhas** para o contador e **backup** diário.
+
+Detalhes em `CHANGELOG.md`; situação frente à especificação da equipe em `docs/auditoria.md`; operação em `docs/runbook.md`.
+
 ## Requisitos do servidor
 
 - PHP 8.3 ou mais novo, com as extensões `pdo_mysql`, `mbstring`, `xml`, `curl`, `zip`, `bcmath`, `intl`
@@ -132,7 +142,13 @@ Permissões das pastas (usuário do servidor web, normalmente `www-data`):
 chown -R www-data:www-data storage bootstrap/cache
 ```
 
-### Criar a primeira oficina
+### Criar o administrador da plataforma
+
+```bash
+php artisan torque:admin seu@email.com --nome="Seu Nome"
+```
+
+### Criar a primeira oficina (ou deixe a oficina se cadastrar em /cadastro)
 
 ```bash
 php artisan torque:empresa "Autocenter Silva" dono@autocentersilva.com.br --cnpj=11222333000181 --nome="José Silva"
@@ -179,6 +195,7 @@ php artisan serve
 ```
 
 Acesse http://127.0.0.1:8000 e entre com **dono@demo.com.br / senha12345**.
+Painel da plataforma: **admin@demo.com.br / senha12345** (pede para ativar a verificação em duas etapas no primeiro acesso).
 Para testar a entrada de nota de compra, use o arquivo `tests/Fixtures/nfe-compra.xml`.
 Também existem `recepcao@demo.com.br` (consultor) e `mecanico@demo.com.br` (mecânico), mesma senha.
 
@@ -190,7 +207,7 @@ No modo demonstração (`PLACA_PROVEDOR=demonstracao`) a consulta de placa devol
 vendor/bin/phpunit
 ```
 
-São 77 testes. Cobrem: separação entre empresas, login e permissões, placa, CPF e CNPJ, veículos, auditoria, consulta de placa (API simulada), a ordem de serviço inteira, importação de XML de compra (inclusive aprendizado do código do fornecedor), inventário, pagamento dividido e parcelado, caixa (sangria, fechamento com diferença), comissões, lembretes, notas fiscais (Focus NFe simulada: dados enviados, consulta, erro da SEFAZ, cancelamento) e WhatsApp pela Evolution API (simulada).
+São 92 testes (relatório em `docs/relatorio-testes.md`). Cobrem: separação entre empresas, login e permissões, placa, CPF e CNPJ, veículos, auditoria, consulta de placa (API simulada), a ordem de serviço inteira, importação de XML de compra (inclusive aprendizado do código do fornecedor), inventário, pagamento dividido e parcelado, caixa (sangria, fechamento com diferença), comissões, lembretes, notas fiscais (Focus NFe simulada: dados enviados, consulta, erro da SEFAZ, cancelamento) e WhatsApp pela Evolution API (simulada).
 
 ## Consulta de placa: custo
 

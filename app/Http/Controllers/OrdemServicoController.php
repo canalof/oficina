@@ -78,7 +78,7 @@ class OrdemServicoController extends Controller
     public function show(OrdemServico $os)
     {
         $this->authorize('os.ver');
-        $os->load(['veiculo', 'cliente', 'consultor', 'mecanico', 'itens.mecanico', 'itens.produto', 'fotos', 'eventos.user', 'contasReceber', 'notas']);
+        $os->load(['veiculo', 'cliente', 'consultor', 'mecanico', 'itens.mecanico', 'itens.produto', 'fotos', 'eventos.user', 'contasReceber', 'notas', 'aceites.user']);
 
         return view('os.show', [
             'os' => $os,
@@ -132,6 +132,7 @@ class OrdemServicoController extends Controller
         abort_unless($os->status->aceitaItens() || $os->status === StatusOs::Pronta, 403);
         $os->desconto_centavos = max(0, Dinheiro::paraCentavos($request->input('desconto')));
         $os->recalcular();
+        $os->alterouOrcamento();
         $os->registrar('Desconto: '.Dinheiro::formatar($os->desconto_centavos));
 
         return back()->with('ok', 'Desconto aplicado.');
@@ -141,7 +142,8 @@ class OrdemServicoController extends Controller
     public function acao(Request $request, OrdemServico $os, string $acao)
     {
         $permissao = match ($acao) {
-            'enviar', 'aprovar', 'entregar' => 'os.editar',
+            'enviar', 'aprovar', 'entregar', 'novo-link' => 'os.editar',
+            'reabrir' => 'os.cancelar',
             'iniciar', 'concluir' => 'os.executar',
             'cancelar' => 'os.cancelar',
             default => abort(404),
@@ -163,7 +165,7 @@ class OrdemServicoController extends Controller
                     if (! $ids) {
                         return back()->with('erro', 'Marque os itens que o cliente aprovou.');
                     }
-                    $os->aprovar($ids, auth()->user()->name.' (no balcão/telefone)');
+                    $os->aprovar($ids, auth()->user()->name.' (no balcão/telefone)', $request->ip(), 'balcao', $request->userAgent());
 
                     return back()->with('ok', 'Aprovação registrada.');
                 case 'iniciar':
@@ -178,6 +180,18 @@ class OrdemServicoController extends Controller
                     $os->entregar();
 
                     return back()->with('ok', 'Carro entregue. Garantia até '.$os->garantiaAte()?->format('d/m/Y').'.');
+                case 'novo-link':
+                    $os->novoLink();
+
+                    return back()->with('ok', 'Link novo gerado. O anterior não funciona mais.');
+                case 'reabrir':
+                    $motivo = trim((string) $request->input('motivo'));
+                    if ($motivo === '') {
+                        return back()->with('erro', 'Informe o motivo da reabertura.');
+                    }
+                    $os->reabrir($motivo);
+
+                    return back()->with('ok', 'OS reaberta. Peças devolvidas ao estoque e comissões não pagas retiradas.');
                 case 'cancelar':
                     $motivo = trim((string) $request->input('motivo'));
                     if ($motivo === '') {

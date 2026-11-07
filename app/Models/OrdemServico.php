@@ -48,6 +48,8 @@ class OrdemServico extends Model
             'desconto_centavos' => 'integer',
             'total_centavos' => 'integer',
             'garantia_dias' => 'integer',
+            'versao' => 'integer',
+            'token_expira_em' => 'datetime',
         ];
     }
 
@@ -83,6 +85,41 @@ class OrdemServico extends Model
         return $this->hasMany(OrdemServicoFoto::class)->orderBy('id');
     }
 
+    public function aceites(): HasMany
+    {
+        return $this->hasMany(OrcamentoAceite::class)->orderByDesc('id');
+    }
+
+    public static function validadeDias(): int
+    {
+        return (int) (Empresa::whereKey(Tenant::id())->value('orcamento_validade_dias') ?: 15);
+    }
+
+    /** Link do cliente ainda vale? */
+    public function linkValido(): bool
+    {
+        return $this->status !== StatusOs::Cancelada && (! $this->token_expira_em || $this->token_expira_em->isFuture());
+    }
+
+    /** Gera um link novo (o antigo deixa de funcionar) e renova a validade. */
+    public function novoLink(): void
+    {
+        $this->token = Str::random(40);
+        $this->token_expira_em = now()->addDays(static::validadeDias());
+        $this->saveQuietly();
+        $this->registrar('Novo link do orçamento gerado (o anterior foi desativado)');
+    }
+
+    /** Itens ou valores mudaram: aceite anterior não vale para a versão nova. */
+    public function alterouOrcamento(): void
+    {
+        $this->versao = (int) $this->versao + 1;
+        if ($this->token_expira_em && $this->token_expira_em->isPast() && $this->status->noPatio()) {
+            $this->token_expira_em = now()->addDays(static::validadeDias());
+        }
+        $this->saveQuietly();
+    }
+
     public function contasReceber(): HasMany
     {
         return $this->hasMany(ContaReceber::class)->orderBy('vencimento');
@@ -109,6 +146,7 @@ class OrdemServico extends Model
             $os->numero = ((int) $ultimo) + 1;
             $os->status = StatusOs::Orcamento;
             $os->token = Str::random(40);
+            $os->token_expira_em = now()->addDays(static::validadeDias());
             $os->save();
             $os->registrar('OS aberta');
 
@@ -207,22 +245,37 @@ class OrdemServico extends Model
      *
      * @param  list<int>|null  $aprovados  null = aprovar todos os pendentes
      */
-    public function aprovar(?array $aprovados, string $quem, ?string $ip = null): void
+    public function aprovar(?array $aprovados, string $quem, ?string $ip = null, string $canal = 'balcao', ?string $navegador = null, ?int $versaoVista = null): void
     {
+        if ($versaoVista !== null && $versaoVista !== (int) $this->versao) {
+            throw new DomainException('O orçamento foi alterado pela oficina depois que você abriu esta página. Atualize a página e confira de novo.');
+        }
         $this->exigir([StatusOs::Orcamento, StatusOs::Aguardando, StatusOs::Aprovada, StatusOs::EmServico], 'Esta OS não está aberta para aprovação.');
         if (! $this->temPendentes()) {
             throw new DomainException('Não há itens esperando aprovação.');
         }
 
-        DB::transaction(function () use ($aprovados, $quem, $ip) {
-            $pendentes = $this->itens()->where('situacao', 'pendente')->get();
+        DB::transaction(function () use ($aprovados, $quem, $ip, $canal, $navegador) {
+            $pendentes = $this->itens()->where('situacao', 'pendente')->lockForUpdate()->get();
             $sim = $nao = 0;
+            $snapshot = [];
             foreach ($pendentes as $item) {
                 $ok = $aprovados === null || in_array($item->id, $aprovados, true);
                 $item->update(['situacao' => $ok ? 'aprovado' : 'recusado']);
                 $ok ? $sim++ : $nao++;
+                $snapshot[] = ['id' => $item->id, 'descricao' => $item->descricao, 'tipo' => $item->tipo, 'quantidade' => (string) $item->quantidade, 'valor_unitario_centavos' => $item->valor_unitario_centavos, 'total_centavos' => $item->total_centavos, 'decisao' => $ok ? 'aprovado' : 'recusado'];
             }
             $this->recalcular();
+
+            $quando = now();
+            $nomeLimpo = mb_substr($quem, 0, 120);
+            OrcamentoAceite::create([
+                'ordem_servico_id' => $this->id, 'user_id' => auth()->id(), 'versao' => (int) $this->versao, 'canal' => $canal,
+                'nome' => $nomeLimpo, 'ip' => $ip, 'navegador' => $navegador ? mb_substr($navegador, 0, 255) : null,
+                'itens' => $snapshot, 'total_centavos' => $this->total_centavos,
+                'hash' => OrcamentoAceite::calcularHash($this->id, (int) $this->versao, $nomeLimpo, $snapshot, $this->total_centavos, $quando->toIso8601String()),
+                'created_at' => $quando,
+            ]);
 
             $texto = $sim === 0
                 ? "Orçamento recusado por {$quem}"
@@ -295,7 +348,25 @@ class OrdemServico extends Model
     public function cancelar(string $motivo): void
     {
         $this->exigir([StatusOs::Orcamento, StatusOs::Aguardando, StatusOs::Aprovada, StatusOs::EmServico, StatusOs::Pronta], 'Esta OS já foi encerrada.');
-        $this->mudar(StatusOs::Cancelada, 'OS cancelada: '.$motivo, ['cancelado_em' => now(), 'motivo_cancelamento' => mb_substr($motivo, 0, 255)]);
+        $this->mudar(StatusOs::Cancelada, 'OS cancelada: '.$motivo, ['cancelado_em' => now(), 'motivo_cancelamento' => mb_substr($motivo, 0, 255), 'token' => Str::random(40)]);
+    }
+
+    /**
+     * Desfaz a entrega (ex.: cliente voltou com problema antes de sair, entrega registrada por engano).
+     * Devolve as peças ao estoque e retira comissões ainda não pagas. O pagamento continua registrado.
+     */
+    public function reabrir(string $motivo): void
+    {
+        $this->exigir([StatusOs::Entregue], 'Só é possível reabrir uma OS entregue.');
+        DB::transaction(function () use ($motivo) {
+            foreach ($this->itens()->where('estoque_baixado', true)->with('produto')->get() as $item) {
+                $item->produto?->movimentar((float) $item->quantidade, 'entrada', 'os', $this->id, $item->produto->custo_centavos, 'Reabertura da OS '.$this->numeroFormatado());
+                $item->update(['estoque_baixado' => false]);
+            }
+            Comissao::where('ordem_servico_id', $this->id)->whereNull('paga_em')->delete();
+            Lembrete::where('ordem_servico_id', $this->id)->where('status', 'pendente')->update(['status' => 'descartado']);
+            $this->mudar(StatusOs::Pronta, 'OS reaberta: '.mb_substr($motivo, 0, 200), ['entregue_em' => null]);
+        });
     }
 
     // ---------- Apoio ----------

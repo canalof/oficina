@@ -21,6 +21,16 @@
                     </td>
                     <td class="whitespace-nowrap text-right font-semibold">{{ Dinheiro::formatar($c->valor_centavos) }}</td>
                     <td class="text-right">
+                        @if ($c->status === 'estornada')
+                            <span class="rotulo border-[#ecc3bf] bg-[#fcf0ef] text-erro">Estornada</span>
+                        @elseif ($c->status === 'recebida' && auth()->user()->can('financeiro.editar'))
+                            <details class="inline-block text-left">
+                                <summary class="cursor-pointer text-sm text-suave">Estornar</summary>
+                                <form method="post" action="{{ route('receber.estornar', $c) }}" class="mt-2 flex gap-1" data-confirmar="Registrar estorno de {{ Dinheiro::formatar($c->valor_centavos) }}?">
+                                    @csrf<input name="motivo" class="input py-1 text-sm" required minlength="5" placeholder="Motivo" aria-label="Motivo do estorno"><button class="btn-perigo btn-sm">Estornar</button>
+                                </form>
+                            </details>
+                        @endif
                         @if ($c->status === 'aberta')
                             <div class="flex flex-wrap justify-end gap-2">
                                 @can('caixa.operar')

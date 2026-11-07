@@ -9,14 +9,14 @@
     </div>
 
     <div class="mb-6 grid gap-4 sm:grid-cols-4">
-        <div class="card card-corpo"><div class="text-sm text-suave">Em estoque</div><div @class(['mt-1 text-3xl font-semibold', 'text-erro' => (float) $produto->estoque < 0, 'text-sinal-escuro' => $produto->noMinimo()])>{{ $produto->estoqueFormatado() }}</div><div class="text-sm text-suave">mínimo {{ Produto::formatarQtd($produto->estoque_minimo) }}</div></div>
+        <div class="card card-corpo"><div class="text-sm text-suave">Em estoque</div><div @class(['mt-1 text-3xl font-semibold', 'text-erro' => (float) $produto->estoque < 0, 'text-sinal-escuro' => $produto->noMinimo()])>{{ $produto->estoqueFormatado() }}</div><div class="text-sm text-suave">reservado em OS: {{ Produto::formatarQtd($produto->reservado()) }} · mínimo {{ Produto::formatarQtd($produto->estoque_minimo) }}</div></div>
         <div class="card card-corpo"><div class="text-sm text-suave">Custo</div><div class="mt-1 text-3xl font-semibold">{{ Dinheiro::formatar($produto->custo_centavos) }}</div></div>
         <div class="card card-corpo"><div class="text-sm text-suave">Preço de venda</div><div class="mt-1 text-3xl font-semibold">{{ Dinheiro::formatar($produto->preco_centavos) }}</div>
             @if ($produto->custo_centavos)<div class="text-sm text-suave">margem {{ number_format(($produto->preco_centavos - $produto->custo_centavos) / max(1, $produto->preco_centavos) * 100, 0) }}%</div>@endif</div>
         <div class="card card-corpo"><div class="text-sm text-suave">Onde fica</div><div class="mt-1 text-xl font-semibold">{{ $produto->localizacao ?: '—' }}</div></div>
     </div>
 
-    <div class="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+    <div class="grid gap-6 lg:grid-cols-[1.6fr_1fr] [&>*]:min-w-0">
         <section class="card overflow-x-auto">
             <div class="border-b border-linha px-5 py-4"><h2>Movimentações</h2></div>
             <table class="tabela">

@@ -1,5 +1,5 @@
 @php $c = $veiculo->cliente; @endphp
-<div class="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+<div class="grid gap-6 lg:grid-cols-[1.2fr_1fr] [&>*]:min-w-0">
     <section class="card">
         <div class="flex flex-wrap items-center gap-4 border-b border-linha px-5 py-4">
             <x-placa :placa="$veiculo->placa" tamanho="md" />

@@ -5,7 +5,7 @@
         <p class="text-suave">Serviços com preço padrão. No orçamento é só escolher; o valor ainda pode ser ajustado em cada OS.</p>
     </div>
 
-    <div class="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+    <div class="grid gap-6 lg:grid-cols-[1.6fr_1fr] [&>*]:min-w-0">
         <div class="min-w-0">
             <form class="mb-4 flex gap-2" role="search">
                 <label class="sr-only" for="busca">Buscar serviço</label>

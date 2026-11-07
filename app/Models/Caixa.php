@@ -42,8 +42,10 @@ class Caixa extends Model
     /** @return array<string,int> total por forma (só entradas de recebimento) */
     public function recebidoPorForma(): array
     {
-        return $this->movimentos()->where('tipo', 'recebimento')->selectRaw('forma, sum(valor_centavos) as total')
-            ->groupBy('forma')->pluck('total', 'forma')->map(fn ($v) => (int) $v)->all();
+        $entra = $this->movimentos()->where('tipo', 'recebimento')->selectRaw('forma, sum(valor_centavos) as total')->groupBy('forma')->pluck('total', 'forma');
+        $sai = $this->movimentos()->where('tipo', 'estorno')->selectRaw('forma, sum(valor_centavos) as total')->groupBy('forma')->pluck('total', 'forma');
+
+        return $entra->map(fn ($v, $f) => (int) $v - (int) ($sai[$f] ?? 0))->all();
     }
 
     /** Quanto deveria haver de dinheiro na gaveta. */
@@ -51,6 +53,6 @@ class Caixa extends Model
     {
         $soma = fn (string $tipo) => (int) $this->movimentos()->where('tipo', $tipo)->where('forma', 'dinheiro')->sum('valor_centavos');
 
-        return $this->saldo_inicial_centavos + $soma('recebimento') + $soma('suprimento') - $soma('sangria') - $soma('pagamento');
+        return $this->saldo_inicial_centavos + $soma('recebimento') + $soma('suprimento') - $soma('sangria') - $soma('pagamento') - $soma('estorno');
     }
 }

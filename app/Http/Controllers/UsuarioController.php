@@ -24,6 +24,10 @@ class UsuarioController extends Controller
 
     public function store(Request $request)
     {
+        $plano = $request->user()->empresa->plano;
+        if ($plano?->limite_usuarios !== null && User::daEmpresaAtual()->where('ativo', true)->count() >= $plano->limite_usuarios) {
+            return back()->withInput()->with('erro', "O plano {$plano->nome} permite até {$plano->limite_usuarios} usuários ativos. Troque de plano em Assinatura ou desative alguém.");
+        }
         $dados = $this->validar($request);
         $dados['empresa_id'] = Tenant::id();
         User::create($dados);
