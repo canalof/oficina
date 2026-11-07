@@ -10,7 +10,7 @@ Sistema de gestão para autocenters (Laravel 13, PHP 8.3, Blade + Tailwind v4, M
 - Permissões ficam em `App\Support\Perfil::permissoes()` e viram Gates (`can:clientes.editar`). Controller chama `$this->authorize(...)`.
 - Placa sempre passa por `Placa::normalizar()`; busca por placa usa `Placa::equivalentes()` (antiga e Mercosul).
 - CPF/CNPJ são guardados só com números/letras (`Documento::normalizar`).
-- Chaves de API só no `.env`, nunca no front.
+- Chaves de API só no `.env`, nunca no front. Exceção: o token fiscal de cada oficina fica em `empresas.fiscal_token` com cast `encrypted` e nunca volta para a tela.
 - Valores em dinheiro em centavos (inteiro), colunas terminadas em `_centavos`.
 
 ## Idioma
@@ -24,3 +24,13 @@ Código de domínio, telas, mensagens e testes em português. Textos de tela cur
 ## Visual
 
 Tokens em `resources/css/app.css` (`asfalto`, `sinal`, `placa`...). Amarelo `sinal` só para o item ativo, foco e a ação principal da recepção. Componente `<x-placa>` para mostrar placas.
+
+## Módulos
+
+- Estoque: `Produto::movimentar()` é o único jeito de mexer no saldo (grava o histórico). Notas de compra: `Services/Estoque`.
+- Dinheiro: `Services/Financeiro/Financeiro` (receber OS, receber/pagar contas, caixa).
+- Entrega da OS: `Services/Os/AoEntregar` (baixa estoque, comissão, lembretes).
+- Notas fiscais: `Services/Fiscal` (Focus NFe ou demonstração).
+- WhatsApp automático: `Services/WhatsApp` (Evolution API, opcional).
+- Agendador: `routes/console.php` (`torque:notas` a cada 5 min, `torque:lembretes` às 9h).
+- Em Blade, use sempre `@php ... @endphp` (não misture com `@php(...)` no mesmo arquivo).

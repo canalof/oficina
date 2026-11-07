@@ -14,6 +14,7 @@
                     @endforeach
                 </select>
             </label>
+            <x-campo nome="comissao_percentual" rotulo="Comissão sobre serviços (%)" tipo="number" step="0.5" min="0" max="100" :valor="$usuario->comissao_percentual ? rtrim(rtrim((string) $usuario->comissao_percentual, '0'), '.') : ''" ajuda="Calculada na entrega do carro, sobre os serviços em que a pessoa é o mecânico." />
             @if ($lojas->count() > 1)
                 <label class="campo"><span>Loja</span>
                     <select name="loja_id" class="input"><option value="">Todas</option>

@@ -26,6 +26,12 @@ class PainelController extends Controller
                 ->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status'),
             'entreguesMes' => OrdemServico::where('status', StatusOs::Entregue->value)->where('entregue_em', '>=', $inicioMes)->count(),
             'valorEntreguesMes' => (int) OrdemServico::where('status', StatusOs::Entregue->value)->where('entregue_em', '>=', $inicioMes)->sum('total_centavos'),
+            'agendaHoje' => \App\Models\Agendamento::with('veiculo')->whereDate('inicio', today())->whereNotIn('status', ['cancelado'])->orderBy('inicio')->get(),
+            'estoqueBaixo' => \App\Models\Produto::abaixoDoMinimo()->count(),
+            'receberVencido' => (int) \App\Models\ContaReceber::where('status', 'aberta')->where('vencimento', '<', today())->sum('valor_centavos'),
+            'pagarHoje' => (int) \App\Models\ContaPagar::where('status', 'aberta')->where('vencimento', '<=', today())->sum('valor_centavos'),
+            'lembretesSemana' => \App\Models\Lembrete::where('status', 'pendente')->where('data_prevista', '<=', today()->addDays(7))->count(),
+            'caixa' => \App\Models\Caixa::aberto(),
             'atrasadas' => OrdemServico::with(['veiculo', 'cliente'])
                 ->whereIn('status', [StatusOs::Aprovada->value, StatusOs::EmServico->value, StatusOs::Orcamento->value, StatusOs::Aguardando->value])
                 ->whereNotNull('previsao_entrega')->where('previsao_entrega', '<', now())->orderBy('previsao_entrega')->limit(5)->get(),

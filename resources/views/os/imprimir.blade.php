@@ -86,7 +86,7 @@
             <div class="flex justify-between border-t-2 border-asfalto pt-1 text-base font-bold"><dt>Total</dt><dd>{{ $os->totalFormatado() }}</dd></div>
         </dl>
 
-        @php($recusados = $os->itens->where('situacao', 'recusado'))
+        @php $recusados = $os->itens->where('situacao', 'recusado'); @endphp
         @if ($recusados->isNotEmpty())
             <p class="mt-3 text-suave">Itens recomendados e não aprovados pelo cliente: {{ $recusados->pluck('descricao')->join(', ') }}.</p>
         @endif
@@ -97,7 +97,7 @@
                 <div class="grid grid-cols-3 gap-x-4 gap-y-0.5">
                     @foreach (Checklist::ITENS as $k => $rot)
                         @isset($os->checklist[$k])
-                            @php($e = $os->checklist[$k])
+                            @php $e = $os->checklist[$k]; @endphp
                             <div>{{ $rot }}: <strong @class(['text-erro' => $e['estado'] === 'avaria'])>{{ Checklist::ESTADOS[$e['estado']] }}</strong>{{ $e['obs'] ? ' ('.$e['obs'].')' : '' }}</div>
                         @endisset
                     @endforeach

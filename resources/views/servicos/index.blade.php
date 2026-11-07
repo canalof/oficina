@@ -14,7 +14,7 @@
             </form>
             <div class="card overflow-x-auto">
                 <table class="tabela">
-                    <thead><tr><th>Serviço</th><th class="text-right">Preço</th><th class="hidden text-right sm:table-cell">Tempo</th><th class="hidden text-right sm:table-cell">Garantia</th>@if($pode)<th></th>@endif</tr></thead>
+                    <thead><tr><th>Serviço</th><th class="text-right">Preço</th><th class="hidden text-right sm:table-cell">Tempo</th><th class="hidden text-right sm:table-cell">Garantia</th><th class="hidden text-right md:table-cell">Revisão</th>@if($pode)<th></th>@endif</tr></thead>
                     <tbody>
                     @forelse ($servicos as $s)
                         <tr @class(['opacity-55' => ! $s->ativo])>
@@ -22,6 +22,7 @@
                             <td class="whitespace-nowrap text-right">{{ Dinheiro::formatar($s->preco_centavos) }}</td>
                             <td class="hidden whitespace-nowrap text-right sm:table-cell">{{ $s->tempo_minutos ? ($s->tempo_minutos >= 60 ? intdiv($s->tempo_minutos, 60).'h'.($s->tempo_minutos % 60 ? str_pad($s->tempo_minutos % 60, 2, '0', STR_PAD_LEFT) : '') : $s->tempo_minutos.' min') : '—' }}</td>
                             <td class="hidden whitespace-nowrap text-right sm:table-cell">{{ $s->garantia_dias !== null ? $s->garantia_dias.' dias' : '—' }}</td>
+                            <td class="hidden whitespace-nowrap text-right md:table-cell">{{ collect([$s->revisao_meses ? $s->revisao_meses.' meses' : null, $s->revisao_km ? number_format($s->revisao_km, 0, ',', '.').' km' : null])->filter()->join(' / ') ?: '—' }}</td>
                             @if ($pode)<td class="text-right"><a href="{{ route('servicos.index', ['editar' => $s->id]) }}" class="text-sm font-semibold hover:underline">Editar</a></td>@endif
                         </tr>
                     @empty
@@ -44,6 +45,11 @@
                         <x-campo nome="tempo_minutos" rotulo="Tempo (min)" tipo="number" min="1" :valor="$editando?->tempo_minutos" />
                     </div>
                     <x-campo nome="garantia_dias" rotulo="Garantia (dias)" tipo="number" min="0" :valor="$editando?->garantia_dias" ajuda="Deixe em branco para usar a garantia da OS." />
+                    <div class="grid grid-cols-2 gap-3">
+                        <x-campo nome="revisao_meses" rotulo="Lembrar em (meses)" tipo="number" min="1" :valor="$editando?->revisao_meses" />
+                        <x-campo nome="revisao_km" rotulo="ou a cada (km)" tipo="number" min="100" step="100" :valor="$editando?->revisao_km" />
+                    </div>
+                    <p class="-mt-2 text-xs text-suave">Com isso, a entrega do carro cria um lembrete de revisão para o cliente.</p>
                     @error('preco_centavos')<p class="erro-msg">{{ $message }}</p>@enderror
                     @if ($editando)
                         <label class="flex items-center gap-2 text-[15px]"><input type="hidden" name="ativo" value="0"><input type="checkbox" name="ativo" value="1" class="h-5 w-5 accent-asfalto" @checked($editando->ativo)> Aparece nos orçamentos</label>

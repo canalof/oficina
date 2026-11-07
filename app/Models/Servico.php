@@ -12,10 +12,10 @@ class Servico extends Model
 {
     use Auditavel, PertenceAEmpresa, SoftDeletes;
 
-    protected $fillable = ['nome', 'preco_centavos', 'tempo_minutos', 'garantia_dias', 'ativo'];
+    protected $fillable = ['nome', 'preco_centavos', 'tempo_minutos', 'garantia_dias', 'revisao_meses', 'revisao_km', 'ativo'];
 
     protected function casts(): array
     {
-        return ['preco_centavos' => 'integer', 'tempo_minutos' => 'integer', 'garantia_dias' => 'integer', 'ativo' => 'boolean'];
+        return ['preco_centavos' => 'integer', 'tempo_minutos' => 'integer', 'garantia_dias' => 'integer', 'revisao_meses' => 'integer', 'revisao_km' => 'integer', 'ativo' => 'boolean'];
     }
 }

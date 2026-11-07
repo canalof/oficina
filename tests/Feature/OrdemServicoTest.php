@@ -143,7 +143,8 @@ class OrdemServicoTest extends TestCase
         $this->actingAs($u);
         $this->post("/os/{$os->id}/acao/iniciar");
         $this->post("/os/{$os->id}/acao/concluir");
-        $this->post("/os/{$os->id}/acao/entregar");
+        $this->post("/os/{$os->id}/acao/entregar")->assertSessionHas('erro'); // falta o pagamento
+        $this->post("/os/{$os->id}/receber", ['pagamentos' => [['forma' => 'pix', 'valor' => '90,00']], 'entregar' => 1])->assertSessionHasNoErrors();
         $os = $this->recarregar($os);
         $this->assertSame(StatusOs::Entregue, $os->status);
         $this->assertSame(now()->addDays(90)->toDateString(), $os->garantiaAte()->toDateString());

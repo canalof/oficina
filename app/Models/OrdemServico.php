@@ -42,6 +42,7 @@ class OrdemServico extends Model
             'concluido_em' => 'datetime',
             'entregue_em' => 'datetime',
             'cancelado_em' => 'datetime',
+            'recebido_em' => 'datetime',
             'km_entrada' => 'integer',
             'combustivel' => 'integer',
             'desconto_centavos' => 'integer',
@@ -80,6 +81,16 @@ class OrdemServico extends Model
     public function fotos(): HasMany
     {
         return $this->hasMany(OrdemServicoFoto::class)->orderBy('id');
+    }
+
+    public function contasReceber(): HasMany
+    {
+        return $this->hasMany(ContaReceber::class)->orderBy('vencimento');
+    }
+
+    public function notas(): HasMany
+    {
+        return $this->hasMany(NotaFiscal::class)->orderByDesc('id');
     }
 
     public function eventos(): HasMany
@@ -249,7 +260,36 @@ class OrdemServico extends Model
     public function entregar(): void
     {
         $this->exigir([StatusOs::Pronta], 'Marque o carro como pronto antes de entregar.');
-        $this->mudar(StatusOs::Entregue, 'Carro entregue ao cliente', ['entregue_em' => now()]);
+        if ($this->total_centavos > 0 && ! $this->recebido_em) {
+            throw new DomainException('Registre o pagamento antes de entregar (pode ser "a prazo").');
+        }
+        DB::transaction(function () {
+            $this->mudar(StatusOs::Entregue, 'Carro entregue ao cliente', ['entregue_em' => now()]);
+            app(\App\Services\Os\AoEntregar::class)->executar($this);
+        });
+    }
+
+    /** Valor dos serviços aprovados, já com a parte proporcional do desconto. */
+    public function valorServicos(): int
+    {
+        return $this->valorPorTipo('servico');
+    }
+
+    public function valorPecas(): int
+    {
+        return $this->valorPorTipo('peca');
+    }
+
+    private function valorPorTipo(string $tipo): int
+    {
+        $itens = $this->itens()->where('situacao', 'aprovado')->get();
+        $sub = (int) $itens->sum('total_centavos');
+        if ($sub === 0) {
+            return 0;
+        }
+        $parte = (int) $itens->where('tipo', $tipo)->sum('total_centavos');
+
+        return (int) round($parte * $this->total_centavos / $sub);
     }
 
     public function cancelar(string $motivo): void

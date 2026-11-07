@@ -17,7 +17,7 @@ class User extends Authenticatable
 {
     use Auditavel, Notifiable;
 
-    protected $fillable = ['empresa_id', 'loja_id', 'name', 'email', 'telefone', 'perfil', 'ativo', 'password'];
+    protected $fillable = ['empresa_id', 'loja_id', 'name', 'email', 'telefone', 'perfil', 'comissao_percentual', 'ativo', 'password'];
 
     protected $hidden = ['password', 'remember_token'];
 
@@ -29,6 +29,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'perfil' => Perfil::class,
             'ativo' => 'boolean',
+            'comissao_percentual' => 'decimal:2',
         ];
     }
 

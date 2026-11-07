@@ -55,6 +55,8 @@ class ServicoController extends Controller
             'preco_centavos' => ['required', 'integer', 'min:0', 'max:99999999'],
             'tempo_minutos' => ['nullable', 'integer', 'min:1', 'max:6000'],
             'garantia_dias' => ['nullable', 'integer', 'min:0', 'max:3650'],
+            'revisao_meses' => ['nullable', 'integer', 'min:1', 'max:60'],
+            'revisao_km' => ['nullable', 'integer', 'min:100', 'max:200000'],
         ], ['nome.unique' => 'Já existe um serviço com esse nome.'], ['tempo_minutos' => 'tempo', 'garantia_dias' => 'garantia']);
         $dados['ativo'] = $request->boolean('ativo', true);
 

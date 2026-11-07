@@ -1,4 +1,4 @@
-@php($c = $veiculo->cliente)
+@php $c = $veiculo->cliente; @endphp
 <div class="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
     <section class="card">
         <div class="flex flex-wrap items-center gap-4 border-b border-linha px-5 py-4">
@@ -14,8 +14,8 @@
             <div><dt class="text-sm text-suave">Cadastrado em</dt><dd class="text-xl font-semibold">{{ $veiculo->created_at->format('d/m/Y') }}</dd></div>
             <div><dt class="text-sm text-suave">Valor FIPE</dt><dd class="text-xl font-semibold">{{ $veiculo->fipe_valor_centavos ? 'R$ '.number_format($veiculo->fipe_valor_centavos / 100, 0, ',', '.') : '—' }}</dd></div>
         </dl>
-        @php($ordens = $veiculo->ordens()->with('itens')->limit(3)->get())
-        @php($aberta = $ordens->first(fn ($o) => $o->status->noPatio()))
+        @php $ordens = $veiculo->ordens()->with('itens')->limit(3)->get(); @endphp
+        @php $aberta = $ordens->first(fn ($o) => $o->status->noPatio()); @endphp
         @if ($ordens->isNotEmpty())
             <div class="border-t border-linha">
                 <div class="px-5 pt-3 text-sm font-semibold text-suave">Últimas visitas</div>
