@@ -1,7 +1,7 @@
 <x-app titulo="Empresa">
     <h1 class="mb-1">Dados da empresa</h1>
     <p class="mb-5 text-suave">Aparecem nos orçamentos, nas ordens de serviço e nas notas fiscais.</p>
-    <form method="post" action="{{ route('empresa.update') }}" class="max-w-3xl space-y-6">
+    <form method="post" data-avisar-saida action="{{ route('empresa.update') }}" class="max-w-3xl space-y-6">
         @csrf @method('put')
         <section class="card card-corpo">
             <h2 class="mb-4">Identificação e endereço</h2>

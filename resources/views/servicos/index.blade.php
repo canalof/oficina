@@ -57,6 +57,7 @@
                     <div class="flex flex-wrap gap-2">
                         <button class="btn-primario">{{ $editando ? 'Salvar serviço' : 'Adicionar ao catálogo' }}</button>
                         @if ($editando)<a href="{{ route('servicos.index') }}" class="btn">Cancelar</a>@endif
+                        @if ($editando && auth()->user()->can('auditoria.ver'))<a href="{{ route('historico', ['servico', $editando->id]) }}" class="btn">Ver histórico</a>@endif
                     </div>
                 </form>
                 @if ($editando)

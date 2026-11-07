@@ -134,8 +134,8 @@ class EstoqueFinanceiroTest extends TestCase
     {
         $u = $this->novaEmpresa();
         $p = $this->em($u, fn () => Produto::create(['nome' => 'Fluido', 'estoque_minimo' => 3]));
-        $this->actingAs($u)->post("/produtos/{$p->id}/movimentar", ['tipo' => 'entrada', 'quantidade' => '10']);
-        $this->post("/produtos/{$p->id}/movimentar", ['tipo' => 'contagem', 'quantidade' => '7']);
+        $this->actingAs($u)->post("/produtos/{$p->id}/movimentar", ['tipo' => 'entrada', 'quantidade' => '10', 'observacao' => 'Compra no balcão']);
+        $this->post("/produtos/{$p->id}/movimentar", ['tipo' => 'contagem', 'quantidade' => '7', 'observacao' => 'Inventário mensal']);
 
         $this->em($u, function () use ($p) {
             $p = $p->fresh();
@@ -144,7 +144,7 @@ class EstoqueFinanceiroTest extends TestCase
             $this->assertFalse($p->noMinimo());
             $this->assertSame(0, Produto::abaixoDoMinimo()->count());
         });
-        $this->post("/produtos/{$p->id}/movimentar", ['tipo' => 'saida', 'quantidade' => '4']);
+        $this->post("/produtos/{$p->id}/movimentar", ['tipo' => 'perda', 'quantidade' => '4', 'observacao' => 'Embalagem furada']);
         $this->assertSame(1, $this->em($u, fn () => Produto::abaixoDoMinimo()->count()));
     }
 

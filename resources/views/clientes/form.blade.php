@@ -6,9 +6,10 @@
         <p class="mb-5 text-suave">Só o nome é obrigatório. Para emitir nota fiscal, preencha CPF/CNPJ e endereço.</p>
     @endif
 
-    <form method="post" action="{{ $cliente->exists ? route('clientes.update', $cliente) : route('clientes.store') }}" class="space-y-5">
+    <form method="post" data-avisar-saida action="{{ $cliente->exists ? route('clientes.update', $cliente) : route('clientes.store') }}" class="space-y-5">
         @csrf
         @if ($cliente->exists) @method('put') @endif
+        @include('partials.duplicados')
         @if ($voltarPlaca)<input type="hidden" name="voltar_placa" value="{{ $voltarPlaca }}">@endif
 
         <section class="card card-corpo">

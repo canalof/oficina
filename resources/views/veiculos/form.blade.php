@@ -5,7 +5,7 @@
         @else Placa e modelo são obrigatórios. @endif
     </p>
 
-    <form method="post" action="{{ $veiculo->exists ? route('veiculos.update', $veiculo) : route('veiculos.store') }}" class="space-y-5">
+    <form method="post" data-avisar-saida action="{{ $veiculo->exists ? route('veiculos.update', $veiculo) : route('veiculos.store') }}" class="space-y-5">
         @csrf
         @if ($veiculo->exists) @method('put') @endif
         <input type="hidden" name="fipe_codigo" value="{{ old('fipe_codigo', $veiculo->fipe_codigo) }}">
@@ -27,12 +27,14 @@
                 <x-campo nome="marca" rotulo="Marca" :valor="$veiculo->marca" class="md:col-span-2" />
                 <x-campo nome="modelo" rotulo="Modelo" :valor="$veiculo->modelo" required class="md:col-span-2" />
                 <x-campo nome="versao" rotulo="Versão" :valor="$veiculo->versao" class="md:col-span-2" />
+                <x-campo nome="motor" rotulo="Motor" :valor="$veiculo->motor" placeholder="Ex.: 1.0 12V Flex" class="md:col-span-2" />
                 <x-campo nome="ano_fabricacao" rotulo="Ano de fabricação" tipo="number" :valor="$veiculo->ano_fabricacao" inputmode="numeric" class="md:col-span-1" />
                 <x-campo nome="ano_modelo" rotulo="Ano do modelo" tipo="number" :valor="$veiculo->ano_modelo" inputmode="numeric" class="md:col-span-1" />
                 <x-campo nome="cor" rotulo="Cor" :valor="$veiculo->cor" class="md:col-span-1" />
                 <x-campo nome="combustivel" rotulo="Combustível" :valor="$veiculo->combustivel" list="combustiveis" class="md:col-span-1" />
                 <x-campo nome="km_atual" rotulo="Km atual" :valor="$veiculo->km_atual ? number_format($veiculo->km_atual, 0, ',', '.') : null" mascara="km" inputmode="numeric" class="md:col-span-2" />
                 <x-campo nome="chassi" rotulo="Chassi" :valor="$veiculo->chassi" maxlength="17" ajuda="Opcional, 17 caracteres" class="md:col-span-3" />
+                <x-campo nome="renavam" rotulo="Renavam" :valor="$veiculo->renavam" inputmode="numeric" maxlength="11" ajuda="Opcional, 11 números" class="md:col-span-3" />
                 <label class="campo md:col-span-6"><span>Observações</span><textarea name="observacoes" rows="2" class="input">{{ old('observacoes', $veiculo->observacoes) }}</textarea></label>
             </div>
             <datalist id="combustiveis"><option>Flex</option><option>Gasolina</option><option>Etanol</option><option>Diesel</option><option>Híbrido</option><option>Elétrico</option><option>GNV</option></datalist>

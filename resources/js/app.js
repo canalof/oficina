@@ -195,3 +195,25 @@ document.querySelector('[data-hoje]')?.scrollIntoView({ inline: 'center', block:
 document.querySelectorAll('canvas[data-qrcode]').forEach((c) => {
     QRCode.toCanvas(c, c.dataset.qrcode, { width: 180, margin: 1 });
 });
+
+// Aviso ao sair da tela com alterações não salvas
+document.querySelectorAll('form[data-avisar-saida]').forEach((f) => {
+    let mudou = false;
+    f.addEventListener('input', () => { mudou = true; });
+    f.addEventListener('change', () => { mudou = true; });
+    f.addEventListener('submit', () => { mudou = false; });
+    window.addEventListener('beforeunload', (e) => {
+        if (!mudou) return;
+        e.preventDefault();
+        e.returnValue = '';
+    });
+});
+
+// Movimentar estoque: custo só aparece na entrada
+const tipoMov = document.querySelector('[data-tipo-movimento]');
+if (tipoMov) {
+    const custo = document.querySelector('[data-so-entrada]')?.closest('label');
+    const atualizar = () => { if (custo) custo.hidden = tipoMov.value !== 'entrada'; };
+    tipoMov.addEventListener('change', atualizar);
+    atualizar();
+}

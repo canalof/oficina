@@ -1,7 +1,10 @@
 <x-app titulo="Fornecedores">
     <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h1>Fornecedores</h1>
-        @can('compras.lancar')<a href="{{ route('fornecedores.create') }}" class="btn-primario">Novo fornecedor</a>@endcan
+        <div class="flex gap-2">
+            @can('compras.lancar')<a href="{{ route('exportar.cadastro', 'fornecedores') }}" class="btn">Exportar</a>@endcan
+            @can('compras.lancar')<a href="{{ route('fornecedores.create') }}" class="btn-primario">Novo fornecedor</a>@endcan
+        </div>
     </div>
     <form class="mb-4 flex gap-2" role="search">
         <input name="busca" value="{{ $busca }}" class="input max-w-sm" placeholder="Buscar fornecedor" aria-label="Buscar fornecedor">

@@ -74,10 +74,20 @@ Route::middleware('auth')->group(function () {
     Route::put('/os/{os}/desconto', [OrdemServicoController::class, 'desconto'])->name('os.desconto');
     Route::get('/os/{os}/imprimir', [OrdemServicoController::class, 'imprimir'])->name('os.imprimir');
     Route::post('/os/{os}/itens', [OrdemServicoItemController::class, 'store'])->name('os.itens.store');
+    Route::put('/os/{os}/itens/{item}', [OrdemServicoItemController::class, 'update'])->name('os.itens.update');
     Route::delete('/os/{os}/itens/{item}', [OrdemServicoItemController::class, 'destroy'])->name('os.itens.destroy');
     Route::post('/os/{os}/fotos', [OrdemServicoFotoController::class, 'store'])->name('os.fotos.store');
     Route::get('/os/{os}/fotos/{foto}', [OrdemServicoFotoController::class, 'show'])->name('os.fotos.show');
     Route::delete('/os/{os}/fotos/{foto}', [OrdemServicoFotoController::class, 'destroy'])->name('os.fotos.destroy');
+
+    Route::get('/historico/{tipo}/{id}', \App\Http\Controllers\HistoricoController::class)->whereNumber('id')->name('historico');
+    Route::get('/cadastros/{tipo}', [\App\Http\Controllers\CadastroAuxiliarController::class, 'index'])->whereIn('tipo', ['categorias', 'fabricantes'])->name('auxiliar.index');
+    Route::post('/cadastros/{tipo}', [\App\Http\Controllers\CadastroAuxiliarController::class, 'store'])->whereIn('tipo', ['categorias', 'fabricantes'])->name('auxiliar.store');
+    Route::put('/cadastros/{tipo}/{id}', [\App\Http\Controllers\CadastroAuxiliarController::class, 'update'])->whereIn('tipo', ['categorias', 'fabricantes'])->whereNumber('id')->name('auxiliar.update');
+    Route::get('/importar/{tipo}', [\App\Http\Controllers\ImportacaoController::class, 'form'])->whereIn('tipo', ['clientes', 'produtos'])->name('importar');
+    Route::get('/importar/{tipo}/modelo', [\App\Http\Controllers\ImportacaoController::class, 'modelo'])->whereIn('tipo', ['clientes', 'produtos'])->name('importar.modelo');
+    Route::post('/importar/{tipo}', [\App\Http\Controllers\ImportacaoController::class, 'importar'])->whereIn('tipo', ['clientes', 'produtos'])->middleware('throttle:10,1')->name('importar.enviar');
+    Route::get('/exportar/{tipo}', [\App\Http\Controllers\ImportacaoController::class, 'exportar'])->whereIn('tipo', ['clientes', 'veiculos', 'produtos', 'fornecedores'])->name('exportar.cadastro');
 
     Route::resource('servicos', ServicoController::class)->only(['index', 'store', 'update', 'destroy']);
 

@@ -150,6 +150,12 @@ class VeiculoController extends Controller
             'cor' => ['nullable', 'string', 'max:30'],
             'combustivel' => ['nullable', 'string', 'max:30'],
             'chassi' => ['nullable', 'string', 'size:17'],
+            'renavam' => ['nullable', function ($a, $v, $fail) {
+                if ($v && ! \App\Support\Renavam::valido($v)) {
+                    $fail('Renavam inválido. Confira os 11 números do documento do carro.');
+                }
+            }],
+            'motor' => ['nullable', 'string', 'max:40'],
             'km_atual' => ['nullable', 'integer', 'min:0', 'max:5000000'],
             'fipe_codigo' => ['nullable', 'string', 'max:12'],
             'fipe_valor_centavos' => ['nullable', 'integer', 'min:0'],

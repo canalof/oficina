@@ -1,6 +1,7 @@
 <x-app titulo="Veículos">
     <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h1>Veículos</h1>
+        @can('veiculos.editar')<a href="{{ route('exportar.cadastro', 'veiculos') }}" class="btn ml-auto">Exportar</a>@endcan
         @can('veiculos.editar')<a href="{{ route('recepcao') }}" class="btn-primario">Cadastrar pela placa</a>@endcan
     </div>
 

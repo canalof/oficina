@@ -31,7 +31,11 @@ class FornecedorController extends Controller
     public function store(Request $request)
     {
         $this->authorize('compras.lancar');
-        Fornecedor::create($this->validar($request));
+        $dados = $this->validar($request);
+        if (! $request->boolean('confirmar_duplicado') && ($parecidos = \App\Support\Duplicados::fornecedores($dados))->isNotEmpty()) {
+            return back()->withInput()->with('duplicados', $parecidos->map(fn ($f) => ['nome' => $f->nome, 'url' => route('fornecedores.edit', $f), 'info' => null])->all());
+        }
+        Fornecedor::create($dados);
 
         return redirect()->route('fornecedores.index')->with('ok', 'Fornecedor cadastrado.');
     }

@@ -8,6 +8,7 @@
             @if ($cliente->aceita_whatsapp && ($link = $cliente->linkWhatsapp()))
                 <a href="{{ $link }}" target="_blank" rel="noopener" class="btn">WhatsApp</a>
             @endif
+            @can('auditoria.ver')<a href="{{ route('historico', ['cliente', $cliente->id]) }}" class="btn">Ver histórico</a>@endcan
             @can('clientes.editar')<a href="{{ route('clientes.edit', $cliente) }}" class="btn">Editar</a>@endcan
             @can('veiculos.editar')<a href="{{ route('veiculos.create', ['cliente_id' => $cliente->id]) }}" class="btn-primario">Adicionar carro</a>@endcan
         </div>

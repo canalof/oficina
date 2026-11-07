@@ -1,7 +1,11 @@
 <x-app titulo="Clientes">
     <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h1>Clientes</h1>
-        @can('clientes.editar')<a href="{{ route('clientes.create') }}" class="btn-primario">Novo cliente</a>@endcan
+        <div class="flex flex-wrap gap-2">
+            @can('clientes.editar')<a href="{{ route('importar', 'clientes') }}" class="btn">Importar</a>@endcan
+            @can('clientes.editar')<a href="{{ route('exportar.cadastro', 'clientes') }}" class="btn">Exportar</a>@endcan
+            @can('clientes.editar')<a href="{{ route('clientes.create') }}" class="btn-primario">Novo cliente</a>@endcan
+        </div>
     </div>
 
     <form class="mb-4 flex gap-2" role="search">

@@ -6,6 +6,10 @@
             <p class="text-suave">Valor em estoque (pelo custo): {{ Dinheiro::formatar($valorEstoque) }}</p>
         </div>
         <div class="flex flex-wrap gap-2">
+            <a href="{{ route('auxiliar.index', 'categorias') }}" class="btn">Categorias</a>
+            <a href="{{ route('auxiliar.index', 'fabricantes') }}" class="btn">Fabricantes</a>
+            @can('estoque.editar')<a href="{{ route('importar', 'produtos') }}" class="btn">Importar</a>@endcan
+            @can('estoque.editar')<a href="{{ route('exportar.cadastro', 'produtos') }}" class="btn">Exportar</a>@endcan
             @can('compras.lancar')<a href="{{ route('compras.index') }}" class="btn">Entrada por XML</a>@endcan
             @can('estoque.editar')<a href="{{ route('produtos.create') }}" class="btn-primario">Novo produto</a>@endcan
         </div>
@@ -21,6 +25,9 @@
     <form class="mb-4 flex flex-wrap gap-2" role="search">
         <label class="sr-only" for="busca">Buscar produto</label>
         <input id="busca" name="busca" value="{{ $busca }}" class="input max-w-sm" placeholder="Nome, código, código de barras ou marca">
+        @if ($categorias->isNotEmpty())
+            <select name="categoria" class="input w-auto" aria-label="Categoria"><option value="">Todas as categorias</option>@foreach($categorias as $c)<option value="{{ $c->id }}" @selected((string) $categoria === (string) $c->id)>{{ $c->nome }}</option>@endforeach</select>
+        @endif
         <select name="filtro" class="input w-auto" aria-label="Filtro">
             <option value="">Todos</option>
             <option value="minimo" @selected($filtro === 'minimo')>No mínimo ou abaixo</option>
@@ -36,7 +43,7 @@
             <tbody>
             @forelse ($produtos as $p)
                 <tr @class(['opacity-55' => ! $p->ativo])>
-                    <td><a href="{{ route('produtos.show', $p) }}" class="font-semibold hover:underline">{{ $p->nome }}</a>@if($p->marca)<div class="text-xs text-suave">{{ $p->marca }}</div>@endif</td>
+                    <td><a href="{{ route('produtos.show', $p) }}" class="font-semibold hover:underline">{{ $p->nome }}</a>@if($p->marcaNome())<div class="text-xs text-suave">{{ $p->marcaNome() }}{{ $p->referencia_fabricante ? ' · ref. '.$p->referencia_fabricante : '' }}</div>@endif</td>
                     <td class="hidden md:table-cell text-sm">{{ $p->codigo ?: $p->codigo_barras }}</td>
                     <td class="hidden sm:table-cell text-sm">{{ $p->localizacao }}</td>
                     <td @class(['whitespace-nowrap text-right font-semibold', 'text-erro' => (float) $p->estoque < 0, 'text-sinal-escuro' => $p->noMinimo() && (float) $p->estoque >= 0])>{{ $p->estoqueFormatado() }}</td>
