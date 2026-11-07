@@ -1,0 +1,13 @@
+{
+    "name": "Torque",
+    "image": "mcr.microsoft.com/devcontainers/php:1-8.3-bookworm",
+    "features": {
+        "ghcr.io/devcontainers/features/node:1": { "version": "22" }
+    },
+    "forwardPorts": [8000],
+    "portsAttributes": {
+        "8000": { "label": "Torque", "onAutoForward": "openBrowser" }
+    },
+    "postCreateCommand": "bash .devcontainer/preparar.sh",
+    "postAttachCommand": "php artisan serve --host=0.0.0.0 --port=8000"
+}

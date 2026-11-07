@@ -1,0 +1,77 @@
+@import 'tailwindcss';
+@import '@fontsource/barlow/400.css';
+@import '@fontsource/barlow/500.css';
+@import '@fontsource/barlow/600.css';
+@import '@fontsource/barlow/700.css';
+@import '@fontsource/barlow-condensed/600.css';
+@import '@fontsource/barlow-condensed/700.css';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+/*
+ * Identidade "Torque": cinza-asfalto, amarelo de faixa de sinalização usado com parcimônia
+ * (marcação de item ativo, foco, chamada principal da recepção) e o azul da placa Mercosul.
+ */
+@theme {
+    --font-sans: 'Barlow', ui-sans-serif, system-ui, sans-serif;
+    --font-placa: 'Barlow Condensed', 'Barlow', ui-sans-serif, sans-serif;
+
+    --color-asfalto: #1f2a33;
+    --color-asfalto-2: #2c3a46;
+    --color-asfalto-3: #3d4d5b;
+    --color-fundo: #f3f4f6;
+    --color-linha: #dde1e6;
+    --color-texto: #1b2228;
+    --color-suave: #5e6a75;
+    --color-sinal: #f2a900;
+    --color-sinal-escuro: #b47d00;
+    --color-placa: #003399;
+    --color-ok: #1f7a46;
+    --color-erro: #b4322a;
+}
+
+@layer base {
+    html { -webkit-text-size-adjust: 100%; }
+    body { @apply bg-fundo text-texto font-sans antialiased; font-feature-settings: 'tnum' 1; }
+    :focus-visible { outline: 3px solid var(--color-sinal); outline-offset: 2px; }
+    h1 { @apply text-2xl font-semibold tracking-tight; }
+    h2 { @apply text-lg font-semibold; }
+    [x-cloak] { display: none !important; }
+}
+
+@layer components {
+    .btn, .btn-primario, .btn-sinal, .btn-perigo { @apply inline-flex items-center justify-center gap-2 rounded-md border border-linha bg-white px-4 py-2.5 text-[15px] font-semibold text-texto transition-colors hover:border-asfalto-3 disabled:opacity-50; }
+    .btn-primario { @apply border-asfalto bg-asfalto text-white hover:bg-asfalto-2 hover:border-asfalto-2; }
+    .btn-sinal { @apply border-sinal bg-sinal text-asfalto hover:bg-[#ffb81a] hover:border-[#ffb81a]; }
+    .btn-perigo { @apply text-erro hover:border-erro; }
+    .btn-sm { @apply px-3 py-1.5 text-sm; }
+
+    .card { @apply rounded-lg border border-linha bg-white; }
+    .card-corpo { @apply p-5; }
+
+    .campo { @apply block text-sm font-medium text-suave; }
+    .campo > span { @apply mb-1.5 block; }
+    .input { @apply block w-full rounded-md border border-[#c9cfd6] bg-white px-3 py-2.5 text-[15px] text-texto placeholder:text-[#9aa4ad] focus:border-asfalto-3 focus:outline-none focus:ring-2 focus:ring-sinal/50; }
+    .input-erro { @apply border-erro; }
+    .erro-msg { @apply mt-1 text-sm text-erro; }
+
+    .tabela { @apply w-full text-left text-[15px]; }
+    .tabela th { @apply border-b border-linha bg-[#f8f9fa] px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-suave; }
+    .tabela td { @apply border-b border-linha px-4 py-3 align-middle; }
+    .tabela tr:last-child td { @apply border-b-0; }
+    .tabela tbody tr:hover td { @apply bg-[#fafbfc]; }
+
+    .rotulo { @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold; }
+
+    /* Placa Mercosul */
+    .placa { @apply inline-flex flex-col overflow-hidden rounded-[6px] border-2 border-[#1b1b1b] bg-white text-[#1b1b1b] leading-none; }
+    .placa-faixa { @apply flex items-center justify-between bg-placa px-1.5 text-white; font-family: var(--font-placa); font-weight: 600; letter-spacing: .12em; }
+    .placa-numero { @apply px-2 text-center; font-family: var(--font-placa); font-weight: 700; letter-spacing: .06em; }
+    .placa-sm .placa-faixa { @apply h-[7px] text-[0px]; }
+    .placa-sm .placa-numero { @apply px-1.5 py-[3px] text-[15px]; }
+    .placa-md .placa-faixa { @apply h-3.5 text-[8px]; }
+    .placa-md .placa-numero { @apply py-1 text-2xl; }
+}
