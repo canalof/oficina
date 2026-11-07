@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.2.0 — 06/11/2026
+
+Fase 2 do escopo "Torque 2.0" (cadastros, estoque e OS). Situação item a item em `docs/auditoria.md`.
+
+### Cadastros
+- Botão **Ver histórico** em clientes, veículos, produtos, fornecedores, serviços, usuários e OS: quem mudou, quando, IP e cada campo antes → depois.
+- Veículo com **Renavam** (dígito conferido) e **motor**.
+- **Categorias** e **fabricantes** de produtos, com tela própria; marcas antigas viraram fabricantes automaticamente.
+- **Referência do fabricante** no produto e lista fixa de **unidades** (UN, PC, JG, PAR, KIT, CX, L, ML, KG, G, M).
+- **Aviso de cadastro duplicado** em clientes (nome ou telefone), produtos (código de barras, referência ou nome) e fornecedores; dá para confirmar e cadastrar mesmo assim.
+- **Importar** clientes e produtos de planilha (CSV do Excel, com `;` ou `,`, acentos do Excel brasileiro). Atualiza quem já existe pelo CPF/CNPJ ou código, aponta a linha de cada erro.
+- **Exportar** clientes, veículos, produtos e fornecedores em CSV que abre no Excel, protegido contra fórmulas maliciosas.
+- Aviso ao sair de um formulário com alterações não salvas.
+
+### Estoque
+- Toda movimentação guarda **saldo anterior e saldo novo**.
+- **Motivo obrigatório** em entrada manual, perda, devolução e contagem.
+- **Devolução de cliente** (volta ao estoque) e **devolução ao fornecedor** (sai do estoque).
+- **Custo médio ponderado** recalculado a cada entrada com custo (manual ou nota de compra), com "última compra" e **histórico de preço e custo** no produto.
+
+### Ordem de serviço
+- **Corrigir item já lançado** (descrição, quantidade, valor, mecânico). Mudar valor ou quantidade de item aprovado manda de novo para aprovação, gera nova versão do orçamento e fica no histórico da OS.
+
+### Correções
+- Importação: contadores de criados/atualizados se perdiam dentro da transação (pego pelo teste).
+
+
 ## 1.1.0 — 07/11/2026
 
 Atende os itens P0 da especificação "Torque SaaS — Especificação completa para a equipe". Situação item a item em `docs/auditoria.md`.

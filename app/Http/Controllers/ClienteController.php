@@ -33,7 +33,11 @@ class ClienteController extends Controller
     public function store(Request $request)
     {
         $this->authorize('clientes.editar');
-        $cliente = Cliente::create($this->validar($request));
+        $dados = $this->validar($request);
+        if (! $request->boolean('confirmar_duplicado') && ($parecidos = \App\Support\Duplicados::clientes($dados))->isNotEmpty()) {
+            return back()->withInput()->with('duplicados', $parecidos->map(fn ($c) => ['nome' => $c->nome, 'url' => route('clientes.show', $c), 'info' => $c->whatsapp ?: $c->telefone])->all());
+        }
+        $cliente = Cliente::create($dados);
 
         if ($placa = $request->input('voltar_placa')) {
             return redirect()->route('veiculos.create', ['placa' => $placa, 'cliente_id' => $cliente->id])

@@ -15,7 +15,7 @@
         </div>
     @endif
 
-    <form method="post" action="{{ $editando ? route('os.update', $os) : route('os.store') }}" class="space-y-6">
+    <form method="post" data-avisar-saida action="{{ $editando ? route('os.update', $os) : route('os.store') }}" class="space-y-6">
         @csrf
         @if ($editando) @method('put') @else <input type="hidden" name="veiculo_id" value="{{ $veiculo->id }}"> @endif
 

@@ -56,3 +56,51 @@ Legenda: **Feito** = implementado e coberto por teste automatizado. **Parcial** 
 ## Decisões que continuam pendentes (seção 13)
 
 Gateway de cobrança definitivo (o código usa Asaas), hospedagem e domínio, várias lojas na primeira versão, contratos de placa/fiscal/WhatsApp, contador responsável pela homologação, oficinas do piloto.
+
+---
+
+# Escopo "Torque 2.0" — situação após a versão 1.2 (Fase 2)
+
+Mesma legenda. Só os itens das seções 2, 3 e 8 do escopo (Fase 2); as fases 3 a 6 continuam como estavam.
+
+## Cadastros (seção 2)
+
+| Item | Situação | Observação |
+|---|---|---|
+| Clientes PF/PJ, CPF/CNPJ, contatos, endereço — editar sem excluir | Feito | |
+| Veículos com placa, chassi, Renavam, modelo, ano, motor, km | Feito | Renavam com dígito conferido |
+| Histórico de proprietários | Feito | Já existia (troca de dono registrada) |
+| Fornecedores e fabricantes | Feito | Fabricante é cadastro próprio; marcas antigas migradas |
+| Funcionários, mecânicos, administradores | Feito | Perfis existentes. "Vendedor" não existe como perfil separado (use Consultor) |
+| Serviços e tabela de preços | Parcial | Um preço por serviço; sem várias tabelas (ex.: frota) |
+| Categorias, marcas, unidades | Feito | Unidades em lista fixa |
+| Importação e exportação | Feito | Importa clientes e produtos; exporta clientes, veículos, produtos, fornecedores. Veículos/fornecedores ainda não importam |
+| Detecção de duplicados | Feito | Aviso com opção de confirmar; não há tela para juntar dois cadastros |
+| Histórico de alterações com botão "Ver histórico" | Feito | Clientes, veículos, produtos, fornecedores, serviços, usuários, OS, contas |
+| Aviso de alterações não salvas | Feito | Formulários principais |
+
+## Estoque (seção 3)
+
+| Item | Situação | Observação |
+|---|---|---|
+| Correção de quantidade com justificativa, saldo anterior e novo, usuário e data | Feito | Motivo obrigatório na tela; `saldo_anterior` em toda movimentação |
+| Entradas, saídas, perdas, devoluções | Feito | Devolução de cliente e ao fornecedor |
+| Inventário físico (contagem) | Feito | Por produto; sem tela de inventário em lote |
+| Localização | Feito | Campo "onde fica". **Depósito** separado: pendente |
+| Mínimo e alerta de reposição | Feito | |
+| Custo médio e histórico de preços | Feito | Média ponderada nas entradas com custo |
+| Código de barras e referência do fabricante | Feito | |
+| Produtos equivalentes | Pendente | |
+| Transferência entre filiais | Pendente | Depende da decisão sobre filiais |
+| Kits de produtos e serviços | Pendente | |
+| Reserva de peças para OS | Feito | Já existia |
+| Integração com compras e OS | Feito | Nota de compra e entrega da OS movimentam pelo mesmo caminho |
+
+## OS (seção 8, parte da Fase 2)
+
+| Item | Situação | Observação |
+|---|---|---|
+| Alterar quantidades e valores de itens lançados | Feito | Item aprovado que muda volta para aprovação; nova versão do orçamento |
+| Histórico de mudanças | Feito | Linha do tempo da OS + "Ver histórico" |
+| Assinatura do cliente, checklist de saída, vídeos | Pendente | |
+

@@ -17,7 +17,7 @@ class Veiculo extends Model
     use Auditavel, PertenceAEmpresa, SoftDeletes;
 
     protected $fillable = [
-        'cliente_id', 'placa', 'marca', 'modelo', 'versao', 'ano_fabricacao', 'ano_modelo', 'cor',
+        'cliente_id', 'placa', 'marca', 'modelo', 'versao', 'motor', 'renavam', 'ano_fabricacao', 'ano_modelo', 'cor',
         'combustivel', 'chassi', 'km_atual', 'fipe_codigo', 'fipe_valor_centavos', 'observacoes',
     ];
 
@@ -29,6 +29,11 @@ class Veiculo extends Model
     public function setPlacaAttribute($valor): void
     {
         $this->attributes['placa'] = Placa::normalizar($valor);
+    }
+
+    public function setRenavamAttribute($valor): void
+    {
+        $this->attributes['renavam'] = \App\Support\Renavam::normalizar($valor) ?: null;
     }
 
     public function cliente(): BelongsTo

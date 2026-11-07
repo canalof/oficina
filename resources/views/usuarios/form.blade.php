@@ -1,6 +1,6 @@
 <x-app :titulo="$usuario->exists ? 'Editar usuário' : 'Novo usuário'">
     <h1 class="mb-5">{{ $usuario->exists ? 'Editar usuário' : 'Novo usuário' }}</h1>
-    <form method="post" action="{{ $usuario->exists ? route('usuarios.update', $usuario->id) : route('usuarios.store') }}" class="card card-corpo max-w-2xl space-y-4">
+    <form method="post" data-avisar-saida action="{{ $usuario->exists ? route('usuarios.update', $usuario->id) : route('usuarios.store') }}" class="card card-corpo max-w-2xl space-y-4">
         @csrf
         @if ($usuario->exists) @method('put') @endif
         <div class="grid gap-4 sm:grid-cols-2">
@@ -34,6 +34,7 @@
         <div class="flex gap-3 pt-2">
             <button class="btn-primario">Salvar</button>
             <a href="{{ route('usuarios.index') }}" class="btn">Cancelar</a>
+            @if ($usuario->exists && auth()->user()->can('auditoria.ver'))<a href="{{ route('historico', ['usuario', $usuario->id]) }}" class="btn">Ver histórico</a>@endif
         </div>
     </form>
 </x-app>

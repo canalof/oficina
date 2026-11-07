@@ -76,6 +76,14 @@ Este repositório está sendo construído por módulos, um Pull Request por etap
 - **Lembretes de revisão**: no catálogo, cada serviço pode ter prazo (ex.: troca de óleo a cada 6 meses ou 10.000 km). Na entrega do carro, o lembrete é criado sozinho.
 - **WhatsApp automático (opcional)** com a Evolution API: todo dia às 9h envia os lembretes dos próximos 7 dias e confirma os agendamentos do dia seguinte. Sem a Evolution, os botões abrem o WhatsApp com a mensagem pronta.
 
+### Versão 1.2: cadastros e estoque
+
+- **Ver histórico** em cada cadastro e na OS (quem mudou o quê, antes → depois).
+- **Corrigir item já lançado** na OS (volta para aprovação se o valor mudar).
+- Veículo com **Renavam** e **motor**; produtos com **categoria**, **fabricante**, **referência** e **unidade**.
+- Estoque com **motivo obrigatório**, **saldo anterior e novo**, **perdas e devoluções**, **custo médio** e histórico de preço.
+- **Importar e exportar** cadastros em planilha; **aviso de cadastro duplicado**.
+
 ### Versão 1.1: plataforma SaaS e segurança
 
 - **Cadastro pelo site** com 14 dias de teste grátis, **planos** com limites, **assinatura recorrente** pelo Asaas, faturas, suspensão automática por atraso e painel do administrador da plataforma (`/plataforma`).

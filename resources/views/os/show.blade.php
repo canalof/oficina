@@ -27,6 +27,7 @@
         </div>
         <div class="flex flex-wrap gap-2">
             <a href="{{ route('os.imprimir', $os) }}" target="_blank" class="btn">Imprimir</a>
+            @can('auditoria.ver')<a href="{{ route('historico', ['os', $os->id]) }}" class="btn">Ver histórico</a>@endcan
             @if ($podeEditar && $st->noPatio())<a href="{{ route('os.edit', $os) }}" class="btn">Editar entrada</a>@endif
         </div>
     </div>
@@ -138,6 +139,20 @@
                                     @endif
                                     <td>
                                         <div @class(['font-medium', 'line-through' => $item->situacao === 'recusado'])>{{ $item->descricao }}</div>
+                                        @if ($podeEditar && $st->aceitaItens() && $item->situacao !== 'recusado')
+                                            <details class="mt-1">
+                                                <summary class="cursor-pointer text-xs font-semibold text-asfalto-3">Corrigir</summary>
+                                                <form method="post" action="{{ route('os.itens.update', [$os, $item]) }}" class="mt-2 grid gap-2 sm:grid-cols-[1fr_70px_110px]">
+                                                    @csrf @method('put')
+                                                    <input name="descricao" value="{{ $item->descricao }}" class="input py-1.5 text-sm" required maxlength="200" aria-label="Descrição">
+                                                    <input name="quantidade" value="{{ $item->quantidadeFormatada() }}" class="input py-1.5 text-right text-sm" inputmode="decimal" required aria-label="Quantidade">
+                                                    <input name="valor" value="{{ Dinheiro::campo($item->valor_unitario_centavos) }}" class="input py-1.5 text-right text-sm" data-mascara="dinheiro" inputmode="decimal" required aria-label="Valor unitário">
+                                                    <select name="mecanico_id" class="input py-1.5 text-sm sm:col-span-2" aria-label="Mecânico do item"><option value="">Mecânico da OS</option>@foreach($mecanicos as $m)<option value="{{ $m->id }}" @selected($item->mecanico_id === $m->id)>{{ $m->name }}</option>@endforeach</select>
+                                                    <button class="btn btn-sm">Salvar</button>
+                                                    @if ($item->situacao === 'aprovado')<p class="text-xs text-suave sm:col-span-3">Mudar quantidade ou valor de item aprovado manda de novo para aprovação.</p>@endif
+                                                </form>
+                                            </details>
+                                        @endif
                                         <div class="text-xs text-suave">
                                             {{ $item->tipo === 'peca' ? 'Peça' : 'Serviço' }}
                                             · @if($item->situacao === 'aprovado')<span class="text-ok">aprovado</span>@elseif($item->situacao === 'recusado')<span class="text-erro">recusado pelo cliente</span>@else<span class="text-sinal-escuro">aguardando aprovação</span>@endif

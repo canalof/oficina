@@ -36,4 +36,7 @@ Tokens em `resources/css/app.css` (`asfalto`, `sinal`, `placa`...). Amarelo `sin
 - Em Blade, use sempre `@php ... @endphp` (não misture com `@php(...)` no mesmo arquivo).
 - Plataforma SaaS: `Services/Cobranca` (Asaas ou demonstração), middleware `VerificarAssinatura`, painel `/plataforma` (gate `plataforma` = admin + 2 etapas). O painel não abre dados internos das oficinas.
 - Orçamento: toda mudança de itens/desconto chama `OrdemServico::alterouOrcamento()` (versão). Aceite fica em `orcamento_aceites` (imutável, com hash).
+- Estoque: `movimentar()` grava `saldo_anterior` e recalcula o custo médio nas entradas com custo; telas exigem motivo. Origens: manual, compra, os, ajuste, perda, devolucao_cliente, devolucao_fornecedor.
+- Histórico de cadastro: `HistoricoController` lê a `auditoria`; para um model novo aparecer, inclua em `TIPOS` e os rótulos em `ROTULOS`.
+- Importar/exportar planilha: `ImportacaoController` (CSV com BOM e `;`; valores começando com = + - @ recebem apóstrofo).
 - Documentação de operação em `docs/` (permissões, testes, runbook, auditoria). Atualize-a junto com o código.

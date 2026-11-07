@@ -1,10 +1,10 @@
 # Relatório de testes automatizados
 
-Executado em 06/11/2026 19:24 com PHP 8.3.6, Laravel 13.40.0, banco SQLite em memória.
+Executado em 06/11/2026 23:30 com PHP 8.3.6, Laravel 13.40.0, banco SQLite em memória.
 
 Comando: `vendor/bin/phpunit --testdox`
 
-**Resultado: 92 testes, 524 verificações, todos aprovados.**
+**Resultado: 104 testes, 616 verificações, todos aprovados.**
 
 ## O que estes testes NÃO comprovam
 
@@ -15,9 +15,6 @@ Comando: `vendor/bin/phpunit --testdox`
 ## Lista
 
 ```
-
-
-
 Acesso (Tests\Feature\Acesso)
  ✔ Visitante vai para o login
  ✔ Login com senha certa e errada
@@ -27,6 +24,20 @@ Acesso (Tests\Feature\Acesso)
  ✔ Dono nao pode tirar o proprio perfil de dono
  ✔ Dono nao edita usuario de outra empresa
  ✔ Paginas principais abrem
+
+Cadastros Estoque (Tests\Feature\CadastrosEstoque)
+ ✔ Renavam confere digito
+ ✔ Veiculo guarda motor e recusa renavam invalido
+ ✔ Corrigir valor de item aprovado volta para aprovacao
+ ✔ Nao corrige item de outra empresa
+ ✔ Historico mostra antes e depois e respeita permissao e empresa
+ ✔ Categorias e fabricantes por empresa
+ ✔ Ajuste exige motivo e guarda saldo anterior
+ ✔ Custo medio ponderado e historico de preco
+ ✔ Avisa cliente duplicado e permite confirmar
+ ✔ Importa clientes atualiza pelo documento e aponta erros
+ ✔ Importa produtos com estoque inicial e cria fabricante
+ ✔ Exporta so da empresa e neutraliza formulas
 
 Cliente Veiculo (Tests\Feature\ClienteVeiculo)
  ✔ Cadastra cliente com cpf valido e guarda so numeros
@@ -129,5 +140,4 @@ Plataforma Seguranca (Tests\Feature\PlataformaSeguranca)
  ✔ Assinatura pelo asaas envia dados certos
  ✔ Painel da plataforma exige admin com duas etapas
  ✔ Portal do cliente
-
 ```

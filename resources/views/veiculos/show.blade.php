@@ -5,6 +5,7 @@
             <h1>{{ $veiculo->descricao() ?: 'Modelo não informado' }}</h1>
             <p class="text-suave">{{ collect([$veiculo->cor, $veiculo->combustivel])->filter()->join(' · ') }}</p>
         </div>
+        @can('auditoria.ver')<a href="{{ route('historico', ['veiculo', $veiculo->id]) }}" class="btn">Ver histórico</a>@endcan
         @can('veiculos.editar')<a href="{{ route('veiculos.edit', $veiculo) }}" class="btn">Editar</a>@endcan
         @can('os.editar')<a href="{{ route('os.create', ['veiculo_id' => $veiculo->id]) }}" class="btn-primario">Abrir OS</a>@endcan
     </div>
@@ -17,6 +18,8 @@
                 <div><dt class="text-sm text-suave">Ano</dt><dd class="font-semibold">{{ $veiculo->ano_fabricacao ? $veiculo->ano_fabricacao.'/'.$veiculo->ano_modelo : '—' }}</dd></div>
                 <div><dt class="text-sm text-suave">Valor FIPE</dt><dd class="font-semibold">{{ $veiculo->fipe_valor_centavos ? 'R$ '.number_format($veiculo->fipe_valor_centavos / 100, 2, ',', '.') : '—' }}</dd></div>
                 <div><dt class="text-sm text-suave">Código FIPE</dt><dd>{{ $veiculo->fipe_codigo ?: '—' }}</dd></div>
+                <div><dt class="text-sm text-suave">Motor</dt><dd>{{ $veiculo->motor ?: '—' }}</dd></div>
+                <div><dt class="text-sm text-suave">Renavam</dt><dd>{{ $veiculo->renavam ?: '—' }}</dd></div>
                 <div class="col-span-2"><dt class="text-sm text-suave">Chassi</dt><dd class="break-all">{{ $veiculo->chassi ?: '—' }}</dd></div>
             </dl>
             @if ($veiculo->observacoes)<p class="mt-4 whitespace-pre-line border-t border-linha pt-4 text-[15px]">{{ $veiculo->observacoes }}</p>@endif

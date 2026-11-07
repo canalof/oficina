@@ -106,7 +106,7 @@ class EntradaCompra
 
                 $produto->movimentar((float) $item->quantidade, 'entrada', 'compra', $compra->id, $item->custo_unitario_centavos, 'NF '.$compra->numero.' '.($compra->fornecedor?->nome ?? ''));
 
-                $atualizar = ['custo_centavos' => $item->custo_unitario_centavos];
+                $atualizar = [];
                 if (! $produto->ncm && $item->ncm) {
                     $atualizar['ncm'] = $item->ncm;
                 }
@@ -116,7 +116,9 @@ class EntradaCompra
                 if (isset($precos[$item->id]) && $precos[$item->id] > 0) {
                     $atualizar['preco_centavos'] = $precos[$item->id];
                 }
-                $produto->update($atualizar);
+                if ($atualizar) {
+                    $produto->update($atualizar);
+                }
                 $item->update(['produto_id' => $produto->id]);
 
                 // Aprende: da próxima vez, o código deste fornecedor já vem ligado

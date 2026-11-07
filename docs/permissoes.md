@@ -31,3 +31,13 @@ Gerada a partir de `App\Support\Perfil::permissoes()`. Regra: negado por padrão
 | Agendar e enviar lembretes (`agenda.editar`) | ✓ | ✓ | ✓ |  | ✓ |  |
 
 **Administrador da plataforma** (`users.admin_plataforma`): acessa só o painel /plataforma (oficinas, planos, avisos do gateway), com verificação em duas etapas obrigatória. Não vê clientes, OS nem financeiro das oficinas.
+
+## Cadastros, estoque e histórico (versão 1.2)
+
+- **Ver histórico** de um cadastro ou OS: `auditoria.ver` (dono e gerente). Só mostra registros da própria oficina.
+- **Corrigir item da OS** já lançado: `os.editar`, enquanto a OS aceita itens. Se a quantidade ou o valor de um item aprovado mudar, ele volta para aprovação do cliente.
+- **Categorias e fabricantes**: ver com `estoque.ver`, cadastrar/renomear/inativar com `estoque.editar`.
+- **Entrada, perda, devolução e contagem de estoque**: `estoque.editar`, sempre com motivo.
+- **Importar planilha**: clientes com `clientes.editar`; produtos com `estoque.editar`.
+- **Exportar planilha** (leva a base inteira, com CPF/CNPJ): clientes com `clientes.editar`, veículos com `veiculos.editar`, produtos com `estoque.editar`, fornecedores com `compras.lancar`. Quem só consulta (ex.: mecânico) não exporta.
+
