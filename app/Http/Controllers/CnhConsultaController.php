@@ -60,6 +60,8 @@ class CnhConsultaController extends Controller
             return back()->with('erro', $erro->getMessage());
         }
 
+        $preenchidos = $dados['provedor'] === 'vio_privado' ? $this->preencherCondutor($condutor, (array) ($avaliacao['lidos'] ?? [])) : [];
+
         $mensagem = match (true) {
             $avaliacao['liberacao'] === 'producao' => 'Consulta oficial concluída: CNH conferida em produção.',
             $avaliacao['autenticidade'] === 'documental' && $avaliacao['ambiente'] === 'producao' => 'QR Code VIO lido pela VIO API. Validade '
@@ -67,8 +69,55 @@ class CnhConsultaController extends Controller
                 .'. Confira com o condutor e registre a conferência assistida abaixo.',
             default => 'Consulta registrada em homologação ('.$avaliacao['resultado'].'). Este resultado não libera retirada nem locação.',
         };
+        if ($preenchidos['preenchidos'] ?? []) {
+            $mensagem .= ' Cadastro do condutor preenchido com: '.implode(', ', $preenchidos['preenchidos']).'.';
+        }
+        foreach ($preenchidos['divergentes'] ?? [] as $aviso) {
+            $mensagem .= ' Atenção: '.$aviso;
+        }
 
         return redirect()->route('mobilidade.condutor.show', ['condutor' => $condutor, 'os' => $os?->id])
             ->with($avaliacao['resultado'] === 'divergente' ? 'erro' : 'ok', $mensagem);
+    }
+
+    /**
+     * Preenche no cadastro do condutor só o que está vazio. O que já estava
+     * preenchido e diverge da leitura vira aviso: a equipe decide.
+     *
+     * @return array{preenchidos: list<string>, divergentes: list<string>}
+     */
+    private function preencherCondutor(MobilidadeCondutor $condutor, array $lidos): array
+    {
+        $preenchidos = [];
+        $divergentes = [];
+        $validade = isset($lidos['validade']) && preg_match('/^\d{4}-\d{2}-\d{2}$/D', (string) $lidos['validade']) ? $lidos['validade'] : null;
+        $categoria = strtoupper(preg_replace('/[^A-Za-z]/', '', (string) ($lidos['categoria'] ?? '')) ?? '');
+        $categoria = in_array($categoria, ['ACC', 'A', 'B', 'C', 'D', 'E', 'AB', 'AC', 'AD', 'AE'], true) ? $categoria : null;
+
+        if ($validade) {
+            if (! $condutor->validade) {
+                $condutor->validade = $validade;
+                $preenchidos[] = 'validade';
+            } elseif ($condutor->validade->format('Y-m-d') !== $validade) {
+                $divergentes[] = 'a validade do cadastro ('.$condutor->validade->format('d/m/Y').') é diferente da lida no QR Code ('.date('d/m/Y', strtotime($validade)).').';
+            }
+        }
+        if ($categoria) {
+            if (! filled($condutor->categoria)) {
+                $condutor->categoria = $categoria;
+                $preenchidos[] = 'categoria';
+            } elseif ($condutor->categoria !== $categoria) {
+                $divergentes[] = 'a categoria do cadastro ('.$condutor->categoria.') é diferente da lida no QR Code ('.$categoria.').';
+            }
+        }
+        if (isset($lidos['registro']) && ! filled($condutor->registro_cnh)) {
+            $condutor->registro_cnh = $lidos['registro'];
+            $preenchidos[] = 'registro da CNH';
+        }
+        if ($condutor->isDirty()) {
+            $condutor->save();
+        }
+
+        return ['preenchidos' => $preenchidos, 'divergentes' => $divergentes];
     }
 }
