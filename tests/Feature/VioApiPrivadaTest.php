@@ -58,7 +58,7 @@ class VioApiPrivadaTest extends TestCase
     {
         return [
             'status' => 'completed', 'qr_type' => 'vio', 'cost' => 0.25,
-            'vio_result' => ['Nome' => 'MARIA EXEMPLO', 'CPF' => '***.456.789-**', 'Cat. Hab.' => 'AB', 'Validade' => '15/03/2036'],
+            'vio_result' => ['Nome' => 'MARIA EXEMPLO', 'CPF' => '***.456.789-**', 'Cat. Hab.' => 'AB', 'Validade' => '15/03/2036', 'Nº Registro' => '01234567890'],
         ];
     }
 
@@ -114,6 +114,32 @@ class VioApiPrivadaTest extends TestCase
         $this->assertStringNotContainsString('456.789', json_encode($consulta->evidencias));
 
         $this->get("/mobilidade/condutores/{$condutor->id}")->assertOk()->assertSee('VIO API privada')->assertSee('Foto ou PDF da CNH (com o QR Code)');
+    }
+
+    public function test_preenche_o_cadastro_vazio_e_avisa_divergencia(): void
+    {
+        $dono = $this->novaEmpresa();
+        $this->configurar($dono);
+        $vazio = $this->em($dono, fn () => MobilidadeCondutor::create(['nome' => 'Maria Exemplo']));
+        $antigo = $this->em($dono, fn () => MobilidadeCondutor::create(['nome' => 'Maria Exemplo', 'categoria' => 'B', 'validade' => '2030-01-10', 'registro_cnh' => '99999999999']));
+        Http::fake([
+            'vio.api.br/api/qrcode/read' => Http::response(['id' => self::ID, 'status' => 'processing']),
+            'vio.api.br/api/qrcode/result/'.self::ID => Http::response($this->leitura()),
+        ]);
+        $dados = ['provedor' => 'vio_privado', 'finalidade' => 'locacao', 'confirmacao' => '1'];
+
+        $this->post("/mobilidade/condutores/{$vazio->id}/consultar", $dados + ['documento' => $this->pdf()])
+            ->assertSessionHas('ok', fn ($m) => str_contains($m, 'preenchido com: validade, categoria, registro da CNH'));
+        $vazio = $this->em($dono, fn () => $vazio->fresh());
+        $this->assertSame(['2036-03-15', 'AB', '01234567890'], [$vazio->validade->format('Y-m-d'), $vazio->categoria, $vazio->registro_cnh]);
+
+        $this->post("/mobilidade/condutores/{$antigo->id}/consultar", $dados + ['documento' => $this->pdf()])
+            ->assertSessionHas('ok', fn ($m) => str_contains($m, 'validade do cadastro (10/01/2030) é diferente') && str_contains($m, 'categoria do cadastro (B)'));
+        $antigo = $this->em($dono, fn () => $antigo->fresh());
+        $this->assertSame(['2030-01-10', 'B', '99999999999'], [$antigo->validade->format('Y-m-d'), $antigo->categoria, $antigo->registro_cnh]);
+
+        // O registro da CNH não fica nas evidências da consulta
+        $this->assertStringNotContainsString('01234567890', json_encode($this->em($dono, fn () => CnhConsulta::pluck('evidencias')->all())));
     }
 
     public function test_avisa_saldo_insuficiente_e_arquivo_sem_qr_vio(): void

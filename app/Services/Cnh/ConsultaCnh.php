@@ -135,6 +135,14 @@ class ConsultaCnh
             $avaliacao['conferencia_id'] = $conferencia->id;
         }
 
+        // Dados lidos do documento, só para quem chamou preencher o cadastro do
+        // condutor. Não vão para as evidências (registro da CNH é dado pessoal).
+        $avaliacao['lidos'] = array_filter([
+            'validade' => $avaliacao['dimensoes']['validade']['valor'] ?? null,
+            'categoria' => $avaliacao['dimensoes']['categoria']['valor'] ?? null,
+            'registro' => is_string($bruto['registro'] ?? null) && preg_match('/^\d{11}$/D', $bruto['registro']) ? $bruto['registro'] : null,
+        ]);
+
         return $avaliacao;
     }
 

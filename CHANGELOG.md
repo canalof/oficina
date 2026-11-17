@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.1 — leitura da VIO preenche o condutor
+
+- Depois da leitura pela VIO API, o Torque preenche no cadastro do condutor a validade, a categoria e o registro da CNH que estiverem vazios. O que já estava preenchido e diverge da leitura não é trocado: aparece como aviso.
+- O registro da CNH lido não vai para o histórico da consulta.
+
 ## 1.5.0 — VIO API privada (vio.api.br)
 
 - Conector da **VIO API privada** em Integrações de CNH: a oficina cola a API Key dela, testa (o teste não gasta crédito) e ativa.

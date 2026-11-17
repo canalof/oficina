@@ -108,6 +108,7 @@ class VioApiPrivada implements ProvedorCnh
             'validade' => $this->campo($dados, ['Validade', 'Data de Validade']),
             'categoria' => $this->campo($dados, ['Cat. Hab.', 'Categoria', 'Cat Hab']),
             'nome' => $this->campo($dados, ['Nome']),
+            'registro' => preg_replace('/\D/', '', (string) $this->campo($dados, ['Nº Registro', 'N° Registro', 'Registro'])) ?: null,
             'custo' => is_numeric($resultado->json('cost')) ? (float) $resultado->json('cost') : null,
         ];
     }
