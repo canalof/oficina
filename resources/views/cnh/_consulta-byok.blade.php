@@ -69,7 +69,7 @@
                     <ul class="list-disc pl-5">@foreach ($evidencias['divergencias'] as $d)<li>{{ $d }}</li>@endforeach</ul>
                 @endif
             @elseif (! empty($evidencias['motivo']))
-                <p>Consulta não concluída ({{ $evidencias['motivo'] }}).</p>
+                <p>Consulta não concluída: {{ $evidencias['mensagem'] ?? $evidencias['motivo'] }}</p>
             @else
                 <p>Categoria de teste: {{ $evidencias['categoria'] ?? 'Não informada' }}</p>
                 <p>Validade de teste: {{ $evidencias['validade'] ?? 'Não informada' }}</p>

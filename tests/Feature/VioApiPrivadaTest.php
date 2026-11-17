@@ -160,7 +160,11 @@ class VioApiPrivadaTest extends TestCase
 
         $this->post("/mobilidade/condutores/{$condutor->id}/consultar", $dados + ['documento' => UploadedFile::fake()->createWithContent('cnh.txt', 'texto')])
             ->assertSessionHasErrors('documento');
-        $this->assertSame(['inconclusiva', 'inconclusiva'], $this->em($dono, fn () => CnhConsulta::pluck('status')->all()));
+        $consultas = $this->em($dono, fn () => CnhConsulta::orderBy('id')->get());
+        $this->assertSame(['inconclusiva', 'inconclusiva'], $consultas->pluck('status')->all());
+        $this->assertSame(['saldo_insuficiente', 'qr_nao_encontrado'], $consultas->map(fn ($c) => $c->evidencias['motivo'])->all());
+        $this->assertStringContainsString('Não foi encontrado QR Code VIO', $consultas[1]->evidencias['mensagem']);
+        $this->get("/mobilidade/condutores/{$condutor->id}")->assertSee('Consulta não concluída: Saldo insuficiente');
     }
 
     public function test_isolamento_entre_empresas(): void

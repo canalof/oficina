@@ -85,7 +85,12 @@ class ConsultaCnh
             $motivo = $this->motivo($erro);
             $registro->update([
                 'status' => 'inconclusiva',
-                'evidencias' => ['motivo' => $motivo, 'resultado' => 'erro', 'consultado_em' => now()->toIso8601String()],
+                // A mensagem só é guardada quando é nossa (DomainException do adaptador): ela não
+                // carrega URL, cabeçalho nem dado pessoal. Erros técnicos ficam só com o código.
+                'evidencias' => array_filter([
+                    'motivo' => $motivo, 'resultado' => 'erro', 'consultado_em' => now()->toIso8601String(),
+                    'mensagem' => $erro instanceof DomainException ? mb_substr($erro->getMessage(), 0, 300) : null,
+                ]),
             ]);
             // A mensagem original pode carregar URL com CPF; registra-se só o código e o hash.
             Log::warning('cnh.consulta.falha', [
@@ -194,6 +199,8 @@ class ConsultaCnh
             str_contains($mensagem, 'nao esta configurado') => 'endpoint_nao_configurado',
             str_contains($mensagem, 'indispon') => 'fornecedor_indisponivel',
             str_contains($mensagem, 'nenhum registro') => 'nao_encontrado',
+            str_contains($mensagem, 'qr code vio') && str_contains($mensagem, 'nao foi encontrado') => 'qr_nao_encontrado',
+            str_contains($mensagem, 'saldo insuficiente') => 'saldo_insuficiente',
             str_contains($mensagem, 'autentica') || str_contains($mensagem, 'credencia') => 'credenciais_recusadas',
             str_contains($mensagem, 'certificado') => 'certificado_invalido',
             default => 'falha_fornecedor',
