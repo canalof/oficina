@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.1 — leitura de CNH em PDF
+
+- "Ler documento neste aparelho" (condutor) aceita PDF além de foto: a 1ª página é desenhada no próprio aparelho (pdf.js) e passa pelo mesmo OCR. Nada é enviado ao servidor.
+- Validade da CNH: passa a ser a data mais recente do documento. Antes pegava a primeira data depois de "VALIDADE", que no layout da CNH é a data de emissão.
+- No celular, o campo deixa de abrir direto a câmera e permite escolher foto ou arquivo.
+
 ## 1.4.0 — Locação separada da oficina
 
 - **Locação** vira um módulo próprio, ligado por empresa em **Empresa → Usar o módulo de Locação**. Desligado, menu, botões e permissões de Locação somem (os dados ficam guardados). Empresas que já tinham frota ou reservas ficam com o módulo ligado.

@@ -9,7 +9,7 @@ if (documentoCnh) {
         if (!arquivo) return;
         fotoCnh.value = '';
         if (arquivo.size > 15 * 1024 * 1024) {
-            saidaCnh.textContent = 'Use uma foto de até 15 MB.';
+            saidaCnh.textContent = 'Use uma foto ou PDF de até 15 MB.';
             return;
         }
         fotoCnh.disabled = true;
@@ -29,7 +29,7 @@ if (documentoCnh) {
             linhas.push(extraido.qrEncontrado ? 'QR Code detectado. Conteúdo não enviado.' : 'QR Code não detectado.');
             saidaCnh.textContent = linhas.join('\n');
         } catch {
-            saidaCnh.textContent = 'Não foi possível ler a foto. Confira manualmente os dados do documento.';
+            saidaCnh.textContent = 'Não foi possível ler o arquivo. Confira manualmente os dados do documento.';
         } finally {
             fotoCnh.disabled = false;
         }
