@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.0 — VIO API privada (vio.api.br)
+
+- Conector da **VIO API privada** em Integrações de CNH: a oficina cola a API Key dela, testa (o teste não gasta crédito) e ativa.
+- Na tela do condutor, "Consultar CNH com credenciais da oficina" aceita foto ou PDF da CNH: o arquivo vai para a VIO API, que lê o QR Code VIO e devolve validade e categoria. O Torque não guarda o arquivo (a VIO API guarda por 30 dias, conforme a política dela).
+- Leitura documental: a consulta fica no histórico do condutor e mostra validade e categoria, mas não substitui a conferência registrada pela equipe nem a consulta oficial da SENATRAN.
+- Avisos claros para chave recusada, saldo insuficiente e arquivo sem QR Code VIO. 5 testes novos, com isolamento entre empresas.
+
 ## 1.4.1 — leitura de CNH em PDF
 
 - "Ler documento neste aparelho" (condutor) aceita PDF além de foto: a 1ª página é desenhada no próprio aparelho (pdf.js) e passa pelo mesmo OCR. Nada é enviado ao servidor.

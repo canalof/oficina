@@ -62,6 +62,9 @@
                                 <label class="campo"><span>Certificado PEM</span><textarea class="input" name="credenciais[certificado_pem]" required rows="2" maxlength="10000" spellcheck="false"></textarea></label>
                                 <label class="campo"><span>Chave privada PEM</span><textarea class="input" name="credenciais[chave_pem]" required rows="2" maxlength="8000" spellcheck="false"></textarea></label>
                                 <label class="campo"><span>CPF do operador autorizado no contrato</span><input class="input" type="password" name="credenciais[cpf_operador]" maxlength="11" inputmode="numeric" required></label>
+                            @elseif ($codigo === 'vio_privado')
+                                <label class="campo"><span>API Key da VIO API</span><input class="input" type="password" name="credenciais[api_key]" maxlength="255" required></label>
+                                <p class="text-sm text-suave">Fica no painel da VIO API (vio.api.br), depois de entrar na conta da oficina.</p>
                             @else
                                 <label class="campo"><span>Consumer Key</span><input class="input" type="password" name="credenciais[consumer_key]" maxlength="255" required></label>
                                 <label class="campo"><span>Consumer Secret</span><input class="input" type="password" name="credenciais[consumer_secret]" maxlength="255" required></label>

@@ -8,16 +8,15 @@ class CatalogoCnh
         'senatran' => ['SENATRAN / SERPRO', 'RENACH. Requer credenciamento e certificado mTLS.', 'https://centraldeajuda.serpro.gov.br/consultasenatran/comofunciona/'],
         'minha_cnh' => ['Minha CNH / Doutor Multas', 'Diagnóstico de CNH por API REST assíncrona (relatórios com webhook ou polling). Sandbox autoatendível; produção pré-paga por consulta. Sem conector nesta instalação.', 'https://minhacnh.doutormultas.com.br/docs/comecar/contratar'],
         'vio_serpro' => ['SERPRO / Vio Decoder', 'Decodificação documental. O teste de conexão valida apenas a autenticação OAuth.', 'https://centraldeajuda.serpro.gov.br/vio/comocontratar/'],
-        'vio_privado' => ['VIO API privada', 'Processamento documental externo por imagem ou PDF. Requer validar autorização e tratamento dos arquivos.', 'https://vio.api.br/'],
+        'vio_privado' => ['VIO API privada', 'Lê o QR Code VIO da CNH por foto ou PDF (vio.api.br, Gsutecnologia). Cobrança por documento lido, sem mensalidade. O fornecedor guarda o arquivo por 30 dias.', 'https://vio.api.br/documentos/cnh/'],
     ];
 
     /** Fornecedores com conector implementado nesta instalação. */
-    public const IMPLEMENTADOS = ['senatran' => SenatranByok::class, 'vio_serpro' => VioByok::class];
+    public const IMPLEMENTADOS = ['senatran' => SenatranByok::class, 'vio_serpro' => VioByok::class, 'vio_privado' => VioApiPrivada::class];
 
     /** Fornecedores que existem na tela de configuração mas não possuem conector. */
     public const PENDENTES = [
         'minha_cnh' => 'Sem conector: a contratação é autoatendível (sandbox e produção pré-paga), mas a integração ainda não foi implementada nem homologada.',
-        'vio_privado' => 'Sem conector: depende de contrato e definição do tratamento dos arquivos enviados.',
     ];
 
     /** O que cada fornecedor efetivamente devolve, por dimensão. */
@@ -25,7 +24,7 @@ class CatalogoCnh
         'senatran' => ['autenticidade', 'validade', 'categoria', 'situacao', 'restricoes'],
         'vio_serpro' => ['autenticidade'],
         'minha_cnh' => [],
-        'vio_privado' => [],
+        'vio_privado' => ['autenticidade', 'validade', 'categoria'],
     ];
 
     public function existe(string $provedor): bool
@@ -64,6 +63,11 @@ class CatalogoCnh
             return ['ambiente' => $ambiente, 'configurado' => false, 'endereco' => null, 'mensagem' => 'Conector não implementado.'];
         }
 
+        // A VIO API privada não tem homologação: a chave da oficina já é de produção.
+        if ($provedor === 'vio_privado') {
+            return ['ambiente' => 'producao', 'configurado' => true, 'endereco' => app(VioApiPrivada::class)->baseUrl(), 'mensagem' => null];
+        }
+
         try {
             $endereco = $provedor === 'senatran'
                 ? app(SenatranProvider::class)->endpoint($ambiente)
@@ -83,7 +87,7 @@ class CatalogoCnh
 
     /**
      * Autenticidade declarada pelo adaptador, nunca pelo nome do fornecedor.
-     * Fornecedor sem conector (minha_cnh, vio_privado) é sempre documental.
+     * Fornecedor sem conector (minha_cnh) é sempre documental.
      */
     public function fonte(string $provedor): string
     {
