@@ -49,7 +49,15 @@ class User extends Authenticatable
 
     public function pode(string $permissao): bool
     {
-        if (str_starts_with($permissao, 'locacao.') && ! $this->empresa?->modulo_locacao) {
+        // Permissões de módulo opcional só valem com o módulo ligado na empresa.
+        $modulo = match (strstr($permissao, '.', true)) {
+            'locacao' => 'locacao',
+            'mobilidade' => 'condutores',
+            'comissoes' => 'comissoes',
+            'notas' => 'fiscal',
+            default => null,
+        };
+        if ($modulo && ! $this->empresa?->temModulo($modulo)) {
             return false;
         }
 

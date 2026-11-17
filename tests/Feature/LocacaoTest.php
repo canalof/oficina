@@ -76,9 +76,11 @@ class LocacaoTest extends TestCase
         $u = $this->novaEmpresa();
         $dados = ['nome_fantasia' => 'Oficina Teste', 'regime_tributario' => 1, 'cfop_padrao' => '5102', 'csosn_padrao' => '102',
             'item_lista_servico' => '14.01', 'aliquota_iss' => '2', 'fiscal_ambiente' => 'homologacao', 'agenda_capacidade' => 5,
-            'orcamento_validade_dias' => 10, 'modulo_locacao' => '1'];
+            'orcamento_validade_dias' => 10, 'modulos_enviados' => '1', 'modulos' => ['locacao']];
         $this->actingAs($u)->put('/empresa', $dados)->assertSessionHasNoErrors();
         $this->assertTrue($u->empresa->fresh()->modulo_locacao);
+        // Locação liga junto Condutores e CNH
+        $this->assertTrue($u->empresa->fresh()->temModulo('condutores'));
     }
 
     public function test_aluguel_sem_os_gera_titulo_na_categoria_locacao(): void

@@ -20,7 +20,9 @@ abstract class TestCase extends BaseTestCase
     /** Cria empresa + loja + usuário com o perfil pedido. */
     protected function novaEmpresa(string $nome = 'Oficina Teste', Perfil $perfil = Perfil::Dono, ?string $email = null): User
     {
-        $empresa = Empresa::create(['nome_fantasia' => $nome]);
+        // Nos testes a empresa nasce com os módulos opcionais ligados (exceto Locação);
+        // os testes de módulo desligam o que precisam.
+        $empresa = Empresa::create(['nome_fantasia' => $nome, 'modulos' => ['condutores', 'bancos', 'comissoes', 'fiscal']]);
 
         return Tenant::com($empresa->id, function () use ($empresa, $perfil, $email) {
             $loja = Loja::create(['nome' => 'Matriz']);

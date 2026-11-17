@@ -7,13 +7,35 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Empresa extends Model
 {
+    /**
+     * Módulos opcionais: oficina nova começa só com o básico (OS, clientes,
+     * agenda, estoque, caixa e contas) e liga o resto em Empresa › Módulos.
+     */
+    public const MODULOS = [
+        'condutores' => ['Condutores, CNH e retirada', 'Cadastro de quem busca o carro, leitura e conferência da CNH, retirada pela OS.'],
+        'locacao' => ['Locação', 'Carro reserva para clientes da oficina e aluguel de carros. Liga também Condutores e CNH.'],
+        'bancos' => ['Bancos e Pix', 'Contas bancárias, extrato (OFX/CSV), conciliação e cobrança Pix.'],
+        'comissoes' => ['Comissões', 'Comissão dos mecânicos e consultores calculada na entrega da OS.'],
+        'fiscal' => ['Notas fiscais', 'Emissão de NFS-e, NFC-e e NF-e pela OS.'],
+    ];
+
+    public function temModulo(string $modulo): bool
+    {
+        if ($modulo === 'locacao') {
+            return (bool) $this->modulo_locacao;
+        }
+
+        return in_array($modulo, (array) $this->modulos, true)
+            || ($modulo === 'condutores' && (bool) $this->modulo_locacao);
+    }
+
     protected $fillable = [
         'nome_fantasia', 'razao_social', 'cnpj', 'telefone', 'email', 'cidade', 'uf', 'ativo',
         'inscricao_estadual', 'inscricao_municipal', 'codigo_municipio', 'logradouro', 'numero', 'bairro', 'cep',
         'regime_tributario', 'cfop_padrao', 'csosn_padrao', 'item_lista_servico', 'aliquota_iss', 'serie_nfce',
         'fiscal_ambiente', 'fiscal_token', 'whatsapp_instancia',
         'plano_id', 'assinatura_status', 'trial_ate', 'cobranca_cliente_id', 'cobranca_assinatura_id', 'proximo_vencimento', 'suspensa_em',
-        'estoque_negativo', 'modulo_locacao', 'agenda_capacidade', 'orcamento_validade_dias', 'cnh_retencao_dias',
+        'estoque_negativo', 'modulo_locacao', 'modulos', 'agenda_capacidade', 'orcamento_validade_dias', 'cnh_retencao_dias',
     ];
 
     public const STATUS = ['trial' => 'Teste grátis', 'ativa' => 'Ativa', 'inadimplente' => 'Pagamento atrasado', 'suspensa' => 'Suspensa', 'cancelada' => 'Cancelada'];
@@ -27,7 +49,7 @@ class Empresa extends Model
     protected function casts(): array
     {
         return ['ativo' => 'boolean', 'fiscal_token' => 'encrypted', 'aliquota_iss' => 'decimal:2', 'regime_tributario' => 'integer', 'serie_nfce' => 'integer',
-            'trial_ate' => 'date', 'proximo_vencimento' => 'date', 'suspensa_em' => 'datetime', 'estoque_negativo' => 'boolean', 'modulo_locacao' => 'boolean',
+            'trial_ate' => 'date', 'proximo_vencimento' => 'date', 'suspensa_em' => 'datetime', 'estoque_negativo' => 'boolean', 'modulo_locacao' => 'boolean', 'modulos' => 'array',
             'agenda_capacidade' => 'integer', 'orcamento_validade_dias' => 'integer', 'cnh_retencao_dias' => 'integer'];
     }
 

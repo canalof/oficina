@@ -20,16 +20,30 @@
             </div>
         </section>
 
+        <section class="card card-corpo" id="modulos">
+            <h2 class="mb-1">Módulos</h2>
+            <p class="mb-4 text-sm text-suave">Ligue só o que a oficina usa. Desligado, o item some do menu e das telas; os dados ficam guardados e voltam quando você ligar de novo.</p>
+            <input type="hidden" name="modulos_enviados" value="1">
+            <div class="space-y-3">
+                @foreach (\App\Models\Empresa::MODULOS as $chave => [$nome, $descricao])
+                    <label class="flex items-start gap-3 text-[15px]">
+                        <input type="checkbox" name="modulos[]" value="{{ $chave }}" class="mt-1 h-4 w-4 accent-asfalto" @checked($empresa->temModulo($chave))>
+                        <span><strong>{{ $nome }}</strong><br><span class="text-sm text-suave">{{ $descricao }}</span></span>
+                    </label>
+                @endforeach
+            </div>
+        </section>
+
         <section class="card card-corpo">
             <h2 class="mb-4">Regras da oficina</h2>
             <div class="grid gap-4 md:grid-cols-2">
                 <x-campo nome="orcamento_validade_dias" rotulo="Validade do link do orçamento (dias)" tipo="number" min="1" max="90" :valor="$empresa->orcamento_validade_dias" />
                 <x-campo nome="agenda_capacidade" rotulo="Carros atendidos ao mesmo tempo (boxes/elevadores)" tipo="number" min="1" max="50" :valor="$empresa->agenda_capacidade" ajuda="A agenda avisa quando passar disso" />
-                <label class="flex items-start gap-2 text-[15px] md:col-span-2"><input type="hidden" name="modulo_locacao" value="0"><input type="checkbox" name="modulo_locacao" value="1" class="mt-1 h-4 w-4 accent-asfalto" @checked($empresa->modulo_locacao)> <span>Usar o módulo de Locação (carro reserva para clientes da oficina e aluguel de carros). Desligado, o menu e os botões de Locação somem e os dados ficam guardados.</span></label>
                 <label class="flex items-start gap-2 text-[15px] md:col-span-2"><input type="hidden" name="estoque_negativo" value="0"><input type="checkbox" name="estoque_negativo" value="1" class="mt-1 h-4 w-4 accent-asfalto" @checked($empresa->estoque_negativo)> <span>Permitir entregar carro com peça sem saldo no estoque (o estoque fica negativo até a nota de compra entrar)</span></label>
             </div>
         </section>
 
+        @if ($empresa->temModulo('fiscal'))
         <section class="card card-corpo">
             <h2 class="mb-1">Dados fiscais</h2>
             <p class="mb-4 text-sm text-suave">Usados para emitir NFS-e, NFC-e e NF-e. <strong>Confira com o seu contador</strong> antes de emitir em produção.</p>
@@ -63,6 +77,12 @@
             </div>
             <a href="{{ route('tutorial') }}#notas-fiscais" class="btn btn-sm mt-4">Ver tutorial de notas fiscais</a>
         </section>
+        @else
+            {{-- Notas fiscais desligadas: mantém os dados fiscais como estão. --}}
+            @foreach (['inscricao_estadual', 'inscricao_municipal', 'codigo_municipio', 'regime_tributario', 'cfop_padrao', 'csosn_padrao', 'item_lista_servico', 'aliquota_iss', 'fiscal_ambiente'] as $campoFiscal)
+                <input type="hidden" name="{{ $campoFiscal }}" value="{{ $empresa->$campoFiscal }}">
+            @endforeach
+        @endif
 
         <section class="card card-corpo">
             <h2 class="mb-1">WhatsApp automático</h2>

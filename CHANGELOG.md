@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.0 — menu enxuto e módulos
+
+- **Menu:** 6 itens fixos (Início, Recepção, Ordens de serviço, Agenda, Clientes, Veículos) e grupos recolhidos (Estoque, Dinheiro, Condutores e locação, Ajustes) que abrem só quando você está dentro deles. Tutorial virou "Ajuda" no rodapé; Lembretes de revisão abrem pela Agenda.
+- **Módulos por empresa** em Ajustes › Empresa e módulos: Condutores/CNH/retirada, Locação, Bancos e Pix, Comissões e Notas fiscais. Oficina nova começa só com o básico. Desligado, some do menu, das telas e das permissões; os dados ficam guardados.
+- Empresas existentes ficam com os módulos que já usam (dados cadastrados, comissão configurada, token fiscal). Locação liga junto Condutores e CNH.
+- Sem Notas fiscais, os dados fiscais saem da página da empresa (e continuam guardados).
+- 6 testes novos (124 no total). Migração conferida em MariaDB.
+
 ## 1.5.1 — leitura da VIO preenche o condutor
 
 - Depois da leitura pela VIO API, o Torque preenche no cadastro do condutor a validade, a categoria e o registro da CNH que estiverem vazios. O que já estava preenchido e diverge da leitura não é trocado: aparece como aviso.
