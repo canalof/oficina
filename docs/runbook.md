@@ -15,12 +15,14 @@
 
 | Comando | Quando | O que faz |
 |---|---|---|
-| `torque:backup` | 02:30 | Backup do banco em `storage/app/backups` (14 últimos) |
+| `torque:backup` | 02:30 | Backup do banco em `storage/app/backups` (30 últimos, junto com os backups de deploy) |
 | `torque:assinaturas` | 03:10 | Suspende teste vencido e atraso além da tolerância |
 | `torque:lembretes` | 09:00 | WhatsApp automático: revisões, confirmação de agenda, novas tentativas |
 | `torque:notas` | a cada 5 min | Consulta notas fiscais em processamento |
 
 ## Atualização (nova versão)
+
+Normalmente é **automática**: push na `main` → Testes → Deploy. Veja `docs/deploy.md`. Os passos abaixo são para atualizar na mão.
 
 1. `php artisan down`
 2. `php artisan torque:backup`
