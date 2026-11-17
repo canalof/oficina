@@ -22,11 +22,20 @@ return [
             'token' => (string) env('CNH_VIO_TOKEN_PATH', '/token'),
             'decode' => (string) env('CNH_VIO_DECODE_PATH', '/viodec-trial/v1/decode'),
         ],
+        'vio_privado' => [
+            'url' => (string) env('CNH_VIO_PRIVADO_URL', 'https://vio.api.br'),
+        ],
     ],
 
     'senatran' => [
         // Recurso relativo; mantido em configuração para auditoria do contrato.
         'recurso' => '/v1/condutores/cpf/%s/registroCnh/%s',
+    ],
+
+    // VIO API privada: o resultado é assíncrono; consulta a cada espera_ms, até tentativas vezes.
+    'vio_privado' => [
+        'tentativas' => (int) env('CNH_VIO_PRIVADO_TENTATIVAS', 20),
+        'espera_ms' => (int) env('CNH_VIO_PRIVADO_ESPERA_MS', 1000),
     ],
 
     'http' => [

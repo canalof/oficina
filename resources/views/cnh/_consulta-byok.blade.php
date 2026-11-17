@@ -32,6 +32,9 @@
                             <strong>Cadastre o CPF e o registro da CNH antes de consultar.</strong>
                         @endif
                     </p>
+                @elseif ($integracao->provedor === 'vio_privado')
+                    <label class="campo"><span>Foto ou PDF da CNH (com o QR Code)</span><input type="file" class="input" name="documento" accept="image/jpeg,image/png,image/webp,application/pdf" required></label>
+                    <p class="text-sm text-suave">O arquivo vai para a VIO API (vio.api.br), que lê o QR Code e cobra por documento lido. O Torque não guarda o arquivo; a VIO API guarda por 30 dias.</p>
                 @else
                     <label class="campo"><span>Arquivo binário do QR de teste (até 16 KB)</span><input type="file" class="input" name="qr" accept=".bin,application/octet-stream" required></label>
                 @endif
