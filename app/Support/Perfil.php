@@ -42,11 +42,12 @@ enum Perfil: string
 
     public function pode(string $permissao): bool
     {
-        if (in_array($permissao, ['mobilidade.ver', 'mobilidade.editar', 'mobilidade.excecao'], true)) {
-            return match ($permissao) {
-                'mobilidade.ver', 'mobilidade.editar' => in_array($this, [self::Dono, self::Gerente, self::Consultor], true),
-                'mobilidade.excecao' => in_array($this, [self::Dono, self::Gerente], true),
-            };
+        // Condutores e retirada (oficina) e Locação seguem as mesmas regras por perfil.
+        // A Locação ainda depende do módulo ligado na empresa (User::pode).
+        if (preg_match('/^(mobilidade|locacao)\.(ver|editar|excecao)$/', $permissao, $m)) {
+            return $m[2] === 'excecao'
+                ? in_array($this, [self::Dono, self::Gerente], true)
+                : in_array($this, [self::Dono, self::Gerente, self::Consultor], true);
         }
         $p = $this->permissoes();
 
@@ -58,6 +59,7 @@ enum Perfil: string
     {
         return [
             'mobilidade.ver', 'mobilidade.editar', 'mobilidade.excecao',
+            'locacao.ver', 'locacao.editar', 'locacao.excecao',
             'clientes.ver', 'clientes.editar', 'clientes.excluir',
             'veiculos.ver', 'veiculos.editar', 'veiculos.excluir',
             'placa.consultar', 'usuarios.gerenciar', 'empresa.configurar', 'auditoria.ver',

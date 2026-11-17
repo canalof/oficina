@@ -61,6 +61,7 @@ class EmpresaController extends Controller
             $dados['fiscal_token'] = null;
         }
         $dados['estoque_negativo'] = $request->boolean('estoque_negativo');
+        $dados['modulo_locacao'] = $request->boolean('modulo_locacao');
         $empresa->update($dados);
 
         return back()->with('ok', 'Dados da empresa salvos.');

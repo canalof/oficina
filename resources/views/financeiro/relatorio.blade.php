@@ -7,7 +7,7 @@
     <div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div class="card card-corpo"><div class="text-sm text-suave">Carros entregues</div><div class="mt-1 text-3xl font-semibold">{{ $carros }}</div><div class="text-sm text-suave">ticket médio {{ Dinheiro::formatar($ticket) }}</div></div>
         <div class="card card-corpo"><div class="text-sm text-suave">Faturado (OS entregues)</div><div class="mt-1 text-3xl font-semibold">{{ Dinheiro::formatar($faturado) }}</div></div>
-        <div class="card card-corpo"><div class="text-sm text-suave">Entrou no caixa e banco</div><div class="mt-1 text-3xl font-semibold text-ok">{{ Dinheiro::formatar($recebido) }}</div></div>
+        <div class="card card-corpo"><div class="text-sm text-suave">Entrou no caixa e banco</div><div class="mt-1 text-3xl font-semibold text-ok">{{ Dinheiro::formatar($recebido) }}</div>@if ($recebidoLocacao)<div class="text-sm text-suave">oficina {{ Dinheiro::formatar($recebido - $recebidoLocacao) }} · locação {{ Dinheiro::formatar($recebidoLocacao) }}</div>@endif</div>
         <div class="card card-corpo"><div class="text-sm text-suave">Saiu (contas pagas)</div><div class="mt-1 text-3xl font-semibold text-erro">{{ Dinheiro::formatar($pago) }}</div><div class="text-sm text-suave">saldo {{ Dinheiro::formatar($recebido - $pago) }}</div></div>
     </div>
     <section class="card card-corpo mb-6">

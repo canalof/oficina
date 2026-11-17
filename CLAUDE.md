@@ -40,4 +40,5 @@ Tokens em `resources/css/app.css` (`asfalto`, `sinal`, `placa`...). Amarelo `sin
 - Histórico de cadastro: `HistoricoController` lê a `auditoria`; para um model novo aparecer, inclua em `TIPOS` e os rótulos em `ROTULOS`.
 - Importar/exportar planilha: `ImportacaoController` (CSV com BOM e `;`; valores começando com = + - @ recebem apóstrofo).
 - Documentação de operação em `docs/` (permissões, testes, runbook, auditoria, deploy). Atualize-a junto com o código.
+- Locação (módulo por empresa, `empresas.modulo_locacao`): `LocacaoController` + `Services/Mobilidade/Reservas`. Modalidades `carro_reserva` (exige OS) e `aluguel` (exige cliente, sem OS). Permissões `locacao.*` só valem com o módulo ligado (`User::pode`). Títulos da devolução com `categoria = locacao`. Condutores, CNH e retirada são da oficina (`MobilidadeController`, permissões `mobilidade.*`).
 - Deploy: push na `main` → Testes → Deploy por SSH (`docs/deploy.md`). Nunca editar direto no servidor; migration nova sempre com `down()`.

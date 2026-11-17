@@ -25,6 +25,7 @@
             <div class="grid gap-4 md:grid-cols-2">
                 <x-campo nome="orcamento_validade_dias" rotulo="Validade do link do orçamento (dias)" tipo="number" min="1" max="90" :valor="$empresa->orcamento_validade_dias" />
                 <x-campo nome="agenda_capacidade" rotulo="Carros atendidos ao mesmo tempo (boxes/elevadores)" tipo="number" min="1" max="50" :valor="$empresa->agenda_capacidade" ajuda="A agenda avisa quando passar disso" />
+                <label class="flex items-start gap-2 text-[15px] md:col-span-2"><input type="hidden" name="modulo_locacao" value="0"><input type="checkbox" name="modulo_locacao" value="1" class="mt-1 h-4 w-4 accent-asfalto" @checked($empresa->modulo_locacao)> <span>Usar o módulo de Locação (carro reserva para clientes da oficina e aluguel de carros). Desligado, o menu e os botões de Locação somem e os dados ficam guardados.</span></label>
                 <label class="flex items-start gap-2 text-[15px] md:col-span-2"><input type="hidden" name="estoque_negativo" value="0"><input type="checkbox" name="estoque_negativo" value="1" class="mt-1 h-4 w-4 accent-asfalto" @checked($empresa->estoque_negativo)> <span>Permitir entregar carro com peça sem saldo no estoque (o estoque fica negativo até a nota de compra entrar)</span></label>
             </div>
         </section>

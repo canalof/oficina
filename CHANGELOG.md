@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.0 — Locação separada da oficina
+
+- **Locação** vira um módulo próprio, ligado por empresa em **Empresa → Usar o módulo de Locação**. Desligado, menu, botões e permissões de Locação somem (os dados ficam guardados). Empresas que já tinham frota ou reservas ficam com o módulo ligado.
+- Duas modalidades: **carro reserva** (ligado a uma OS em andamento; o cliente vem da OS; frota própria ou locadora parceira; cobrado ou cortesia) e **aluguel** (só cliente, sem OS, sempre com carro da frota).
+- Tela nova em **Locação → Reservas e frota** (`/locacao`): resumo da frota, filtros por modalidade e situação, cadastro da frota, saída, devolução, prorrogação, fotos e contratos. Valores digitados em reais.
+- **Condutores e retirada** (`/mobilidade`) fica só com o que é da oficina: condutores, CNH e retirada do carro consertado.
+- Na OS, os botões passam a ser **Retirada** e **Carro reserva**; na ficha do cliente, **Locações do cliente**.
+- Títulos gerados na devolução entram em Contas a receber com `categoria = locacao`; o Resumo do mês mostra quanto veio da oficina e quanto da locação.
+- Permissões novas `locacao.ver`, `locacao.editar`, `locacao.excecao` (mesmos perfis de antes), que dependem do módulo ligado.
+- 8 testes novos (112 no total). Migration conferida em MariaDB: sobe, desfaz e sobe de novo.
+
 ## 1.3.0 — código do servidor de 09/11/2026
 
 Traz para o repositório o que foi feito direto no servidor (torque.softmaxbr.com.br) depois da 1.2.0, para o deploy automático partir da versão que está no ar. Sem novos testes para os módulos novos.

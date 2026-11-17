@@ -1,4 +1,4 @@
-@can('mobilidade.editar')
+@can($permissao ?? 'mobilidade.editar')
     @if ($documentosDisponiveis)
         <form method="post" action="{{ route('mobilidade.documento.gerar') }}" class="my-3 flex flex-wrap items-end gap-2">
             @csrf

@@ -30,7 +30,10 @@
             <a href="{{ route('os.imprimir', $os) }}" target="_blank" class="btn">Imprimir</a>
             <a href="#conversa-interna" class="btn">Conversa interna</a>
             @can('mobilidade.ver')
-                <a href="{{ route('mobilidade.index', ['os' => $os->id]) }}" class="btn">Mobilidade e retirada</a>
+                <a href="{{ route('mobilidade.index', ['os' => $os->id]) }}" class="btn">Retirada</a>
+            @endcan
+            @can('locacao.ver')
+                <a href="{{ route('locacao.index', ['os' => $os->id]) }}" class="btn">Carro reserva</a>
             @endcan
             @can('clientes.editar')
                 @if ($os->cliente)<a href="{{ route('clientes.show', $os->cliente) }}#portal-cliente" class="btn">Portal do cliente</a>@endif

@@ -49,6 +49,10 @@ class User extends Authenticatable
 
     public function pode(string $permissao): bool
     {
+        if (str_starts_with($permissao, 'locacao.') && ! $this->empresa?->modulo_locacao) {
+            return false;
+        }
+
         return $this->ativo && $this->perfil->pode($permissao);
     }
 

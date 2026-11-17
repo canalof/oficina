@@ -2,6 +2,7 @@
 
 namespace App\Services\Mobilidade;
 
+use App\Models\Cliente;
 use App\Models\ConferenciaCnh;
 use App\Models\ContaReceber;
 use App\Models\Empresa;
@@ -15,10 +16,29 @@ use Illuminate\Support\Facades\DB;
 
 class Reservas
 {
+    /**
+     * Carro reserva: ligado a uma OS em andamento; o cliente vem da OS.
+     * Aluguel: só cliente, sem OS, e sempre com carro da frota própria.
+     */
     public function reservar(array $dados): MobilidadeReserva
     {
         return DB::transaction(function () use ($dados) {
-            OrdemServico::whereKey($dados['ordem_servico_id'])->lockForUpdate()->firstOrFail();
+            if ($dados['modalidade'] === 'carro_reserva') {
+                $os = OrdemServico::whereKey($dados['ordem_servico_id'] ?? 0)->lockForUpdate()->first();
+                if (! $os) {
+                    throw new DomainException('Carro reserva precisa de uma ordem de serviço.');
+                }
+                if (! $os->status->noPatio()) {
+                    throw new DomainException('Esta OS já está encerrada.');
+                }
+                $dados['cliente_id'] = $os->cliente_id;
+            } else {
+                if (($dados['tipo'] ?? 'frota') !== 'frota') {
+                    throw new DomainException('Aluguel usa um carro da frota própria.');
+                }
+                Cliente::findOrFail($dados['cliente_id'] ?? 0);
+                $dados['ordem_servico_id'] = null;
+            }
             MobilidadeCondutor::findOrFail($dados['condutor_id']);
             if ($dados['frota_id'] ?? null) {
                 $frota = MobilidadeFrota::whereKey($dados['frota_id'])->lockForUpdate()->firstOrFail();
@@ -91,11 +111,12 @@ class Reservas
         }
         $titulo = null;
         if ($valor > 0 && $r->tipo !== 'parceira') {
-            $os = OrdemServico::findOrFail($r->ordem_servico_id);
+            $os = $r->ordem_servico_id ? OrdemServico::findOrFail($r->ordem_servico_id) : null;
             $titulo = ContaReceber::create([
-                'cliente_id' => $os->cliente_id, 'ordem_servico_id' => $os->id,
-                'descricao' => 'Mobilidade · reserva #'.$r->id, 'valor_centavos' => $valor,
-                'vencimento' => today(), 'forma' => 'prazo',
+                'cliente_id' => $r->cliente_id ?? $os?->cliente_id, 'ordem_servico_id' => $os?->id,
+                'categoria' => 'locacao',
+                'descricao' => 'Locação · '.($r->ehAluguel() ? 'aluguel' : 'carro reserva').' #'.$r->id.($os ? ' · OS '.$os->numeroFormatado() : ''),
+                'valor_centavos' => $valor, 'vencimento' => today(), 'forma' => 'prazo',
             ]);
         }
         $r->update([

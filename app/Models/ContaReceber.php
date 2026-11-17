@@ -13,7 +13,7 @@ class ContaReceber extends Model
 
     protected $table = 'contas_receber';
 
-    protected $fillable = ['cliente_id', 'ordem_servico_id', 'descricao', 'parcela', 'valor_centavos', 'vencimento', 'forma', 'status', 'recebido_em', 'forma_recebida'];
+    protected $fillable = ['cliente_id', 'ordem_servico_id', 'categoria', 'descricao', 'parcela', 'valor_centavos', 'vencimento', 'forma', 'status', 'recebido_em', 'forma_recebida'];
 
     protected function casts(): array
     {

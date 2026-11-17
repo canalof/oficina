@@ -1,6 +1,6 @@
 <x-app :titulo="$cliente->nome">
-    @can('mobilidade.ver')
-        <a href="{{ route('mobilidade.index', ['cliente' => $cliente->id]) }}" class="btn btn-sm mb-3">Mobilidade do cliente</a>
+    @can('locacao.ver')
+        <a href="{{ route('locacao.index', ['cliente' => $cliente->id]) }}" class="btn btn-sm mb-3">Locações do cliente</a>
     @endcan
     <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>

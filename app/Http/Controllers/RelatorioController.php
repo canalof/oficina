@@ -41,6 +41,7 @@ class RelatorioController extends Controller
             'ticket' => $carros ? intdiv($faturado, $carros) : 0,
             'recebidoPorForma' => (clone $recebido)->selectRaw('forma_recebida, sum(valor_centavos) as total')->groupBy('forma_recebida')->pluck('total', 'forma_recebida'),
             'recebido' => (int) (clone $recebido)->sum('valor_centavos'),
+            'recebidoLocacao' => (int) (clone $recebido)->where('categoria', 'locacao')->sum('valor_centavos'),
             'pagoPorCategoria' => (clone $pago)->selectRaw('categoria, sum(valor_centavos) as total')->groupBy('categoria')->orderByDesc('total')->pluck('total', 'categoria'),
             'pago' => (int) (clone $pago)->sum('valor_centavos'),
             'topServicos' => $topServicos,

@@ -21,8 +21,11 @@
             ['os.index', 'Ordens de serviço', 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h4', 'os.ver'],
             ['clientes.index', 'Clientes', 'M16 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0zM4 21c0-4 4-6 8-6s8 2 8 6', 'clientes.ver'],
             ['veiculos.index', 'Veículos', 'M5 16h14l-1.5-5.5A2 2 0 0 0 15.6 9H8.4a2 2 0 0 0-1.9 1.5zM7 16v2M17 16v2M7.5 13h.01M16.5 13h.01', 'veiculos.ver'],
-            ['mobilidade.index', 'Mobilidade', 'M3 5h18v14H3zM7 10h3M7 14h3M13 10h5M13 14h5', 'mobilidade.ver'],
+            ['mobilidade.index', 'Condutores e retirada', 'M16 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0zM9 21l3-3 3 3M12 18v-3', 'mobilidade.ver'],
             ['lembretes.index', 'Lembretes de revisão', 'M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0', 'agenda.ver'],
+        ],
+        'Locação' => [
+            ['locacao.index', 'Reservas e frota', 'M5 16h14l-1.5-5.5A2 2 0 0 0 15.6 9H8.4a2 2 0 0 0-1.9 1.5zM7 16v2M17 16v2M3 5h4M5 3v4', 'locacao.ver'],
         ],
         'Estoque' => [
             ['produtos.index', 'Produtos', 'M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8', 'estoque.ver'],

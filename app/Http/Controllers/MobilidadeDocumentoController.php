@@ -9,6 +9,7 @@ use App\Models\MobilidadeModelo;
 use App\Models\MobilidadeReserva;
 use App\Models\MobilidadeRetirada;
 use App\Models\OrdemServico;
+use App\Support\Placa;
 use App\Support\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -18,27 +19,33 @@ use Throwable;
 
 class MobilidadeDocumentoController extends Controller
 {
+    /** Documentos da retirada (oficina). Os demais são da Locação. */
+    public const DA_RETIRADA = ['autorizacao', 'entrega'];
+
     public const TIPOS = [
         'autorizacao' => 'Autorização de retirada', 'entrega' => 'Termo de entrega',
         'carro_reserva' => 'Termo de carro reserva', 'locacao' => 'Contrato de locação',
         'devolucao' => 'Termo de devolução', 'vistoria' => 'Registro de vistoria',
     ];
 
-    public function index()
+    public function index(Request $request)
     {
-        $this->authorize('mobilidade.ver');
+        $retirada = $request->user()->can('mobilidade.ver');
+        $locacao = $request->user()->can('locacao.ver');
+        abort_unless($retirada || $locacao, 403);
+        $tipos = array_filter(self::TIPOS, fn ($t) => in_array($t, self::DA_RETIRADA, true) ? $retirada : $locacao, ARRAY_FILTER_USE_KEY);
 
         return response()->view('mobilidade.documentos', [
-            'tipos' => self::TIPOS,
+            'tipos' => $tipos,
             'modelos' => MobilidadeModelo::get()->keyBy('tipo'),
-            'documentos' => MobilidadeDocumento::latest('id')->paginate(20),
+            'documentos' => MobilidadeDocumento::whereIn('tipo', array_keys($tipos))->latest('id')->paginate(20),
         ])->header('Cache-Control', 'private, no-store');
     }
 
     public function modelo(Request $request, string $tipo)
     {
-        $this->authorize('mobilidade.excecao');
         abort_unless(isset(self::TIPOS[$tipo]), 404);
+        $this->authorize(in_array($tipo, self::DA_RETIRADA, true) ? 'mobilidade.excecao' : 'locacao.excecao');
         $dados = $request->validate(['texto' => ['required', 'string', 'max:12000']]);
         MobilidadeModelo::updateOrCreate(['tipo' => $tipo], $dados);
 
@@ -47,7 +54,6 @@ class MobilidadeDocumentoController extends Controller
 
     public function gerar(Request $request)
     {
-        $this->authorize('mobilidade.editar');
         $dados = $request->validate([
             'tipo' => ['required', Rule::in(array_keys(self::TIPOS))],
             'reserva_id' => ['nullable', 'integer', 'required_without:retirada_id', 'prohibits:retirada_id'],
@@ -56,24 +62,29 @@ class MobilidadeDocumentoController extends Controller
         $reserva = empty($dados['reserva_id']) ? null : MobilidadeReserva::findOrFail($dados['reserva_id']);
         $retirada = empty($dados['retirada_id']) ? null : MobilidadeRetirada::findOrFail($dados['retirada_id']);
         $tipo = $dados['tipo'];
+        $this->authorize($retirada ? 'mobilidade.editar' : 'locacao.editar');
         abort_unless($retirada
             ? ($tipo === 'autorizacao' || ($tipo === 'entrega' && $retirada->entregue_em))
             : match ($tipo) {
-                'carro_reserva' => $reserva->tipo === 'reserva',
-                'locacao' => in_array($reserva->tipo, ['locacao', 'parceira'], true),
+                'carro_reserva' => ! $reserva->ehAluguel(),
+                'locacao' => $reserva->ehAluguel() || $reserva->tipo === 'parceira',
                 'vistoria' => $reserva->entrega !== null,
                 'devolucao' => $reserva->devolucao !== null,
                 default => false,
             }, 422, 'Documento incompatível com a etapa do atendimento.');
         $origem = $retirada ?? $reserva;
-        $os = OrdemServico::with('veiculo')->findOrFail($origem->ordem_servico_id);
+        $os = $origem->ordem_servico_id ? OrdemServico::with(['veiculo', 'cliente'])->findOrFail($origem->ordem_servico_id) : null;
+        $clienteReserva = $reserva?->cliente_id ? \App\Models\Cliente::withTrashed()->find($reserva->cliente_id) : null;
+        $carro = $reserva?->frota_id ? \App\Models\MobilidadeFrota::find($reserva->frota_id) : null;
         $condutor = MobilidadeCondutor::withTrashed()->findOrFail($origem->condutor_id);
         $dadosEtapa = $reserva ? (($tipo === 'devolucao' ? $reserva->devolucao : $reserva->entrega) ?? []) : [];
         $aceite = $retirada?->aceite_nome ?? $dadosEtapa['aceite_nome'] ?? '';
         $modelo = MobilidadeModelo::where('tipo', $tipo)->value('texto');
         $cabecalho = implode(PHP_EOL, [
             self::TIPOS[$tipo], 'Oficina: '.$request->user()->empresa->nome_fantasia,
-            'OS: '.$os->numeroFormatado().' · Veículo da OS: '.$os->veiculo->placaFormatada(),
+            ...($os ? ['OS: '.$os->numeroFormatado().' · Veículo da OS: '.$os->veiculo->placaFormatada()] : []),
+            ...($clienteReserva ? ['Cliente: '.$clienteReserva->nome] : []),
+            ...($carro ? ['Carro: '.Placa::formatar($carro->placa).' · '.$carro->descricao] : []),
             'Condutor: '.$condutor->nome,
         ]);
         $detalhes = $retirada
@@ -95,14 +106,13 @@ class MobilidadeDocumentoController extends Controller
 
     public function mostrar(MobilidadeDocumento $documento)
     {
-        $this->authorize('mobilidade.ver');
+        $this->authorize($documento->retirada_id ? 'mobilidade.ver' : 'locacao.ver');
 
         return response()->view('mobilidade.imprimir', ['documento' => $documento])->header('Cache-Control', 'private, no-store');
     }
 
     public function anexar(Request $request)
     {
-        $this->authorize('mobilidade.editar');
         $dados = $request->validate([
             'reserva_id' => ['nullable', 'integer', 'required_without:retirada_id', 'prohibits:retirada_id'],
             'retirada_id' => ['nullable', 'integer', 'required_without:reserva_id', 'prohibits:reserva_id'],
@@ -111,6 +121,7 @@ class MobilidadeDocumentoController extends Controller
         ]);
         $reserva = empty($dados['reserva_id']) ? null : MobilidadeReserva::findOrFail($dados['reserva_id']);
         $retirada = empty($dados['retirada_id']) ? null : MobilidadeRetirada::findOrFail($dados['retirada_id']);
+        $this->authorize($retirada ? 'mobilidade.editar' : 'locacao.editar');
         abort_unless($retirada ? $dados['etapa'] === 'retirada' : match ($dados['etapa']) {
             'entrega' => $reserva->entrega !== null,
             'devolucao' => $reserva->devolucao !== null,
@@ -142,7 +153,7 @@ class MobilidadeDocumentoController extends Controller
 
     public function foto(MobilidadeFoto $foto)
     {
-        $this->authorize('mobilidade.ver');
+        $this->authorize($foto->retirada_id ? 'mobilidade.ver' : 'locacao.ver');
         abort_unless(Storage::disk('local')->exists($foto->caminho), 404);
 
         return Storage::disk('local')->response($foto->caminho, null, ['Cache-Control' => 'private, no-store', 'Content-Type' => 'image/jpeg']);
