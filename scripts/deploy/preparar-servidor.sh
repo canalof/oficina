@@ -22,7 +22,7 @@ systemctl list-unit-files "$PHPFPM.service" >/dev/null || { echo "Não achei o s
 command -v mysqldump >/dev/null || { echo "Instale o mysqldump antes (apt install mariadb-client)."; exit 1; }
 
 echo "== 1/6 Pacotes (rsync e acl)"
-apt-get install -y -qq rsync acl >/dev/null
+DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a NEEDRESTART_SUSPEND=1 apt-get install -y -qq rsync acl </dev/null >/dev/null
 
 echo "== 2/6 Cópia das permissões atuais (para desfazer: zcat /root/torque-permissoes-antes.acl.gz | setfacl --restore=-)"
 getfacl -R -p "$APP" 2>/dev/null | gzip > /root/torque-permissoes-antes.acl.gz
