@@ -55,18 +55,18 @@ Route::middleware('throttle:orcamento')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
-    Route::get('/financeiro/pix', [\App\Http\Controllers\PixController::class, 'index'])->name('pix.index');
-    Route::post('/financeiro/pix', [\App\Http\Controllers\PixController::class, 'store'])->middleware('throttle:10,1')->name('pix.store');
-    Route::post('/financeiro/pix/{cobranca}/cancelar-rascunho', [\App\Http\Controllers\PixController::class, 'cancelarRascunho'])->middleware('throttle:10,1')->name('pix.cancelar-rascunho');
-    Route::post('/financeiro/pix/{cobranca}/confirmar-manual', [\App\Http\Controllers\PixController::class, 'confirmarManual'])->middleware('throttle:10,1')->name('pix.confirmar-manual');
-    Route::get('/financeiro/bancos', [\App\Http\Controllers\BancoController::class, 'index'])->name('bancos.index');
-    Route::post('/financeiro/bancos', [\App\Http\Controllers\BancoController::class, 'store'])->name('bancos.store');
-    Route::put('/financeiro/bancos/{conta}/pix', [\App\Http\Controllers\BancoController::class, 'configurarPix'])->name('bancos.pix');
-    Route::post('/financeiro/bancos/{conta}/movimentos', [\App\Http\Controllers\BancoController::class, 'movimento'])->name('bancos.movimento');
-    Route::post('/financeiro/bancos/{conta}/importar-ofx', [\App\Http\Controllers\BancoController::class, 'importarOfx'])->name('bancos.importar.ofx');
-    Route::post('/financeiro/bancos/movimentos/{movimento}/conciliar', [\App\Http\Controllers\BancoController::class, 'conciliar'])->name('bancos.conciliar');
-    Route::post('/financeiro/bancos/movimentos/{movimento}/desfazer', [\App\Http\Controllers\BancoController::class, 'desfazerConciliacao'])->name('bancos.desfazer');
-    Route::post('/financeiro/bancos/{conta}/importar-csv', [\App\Http\Controllers\BancoController::class, 'importarCsv'])->name('bancos.importar');
+    Route::get('/financeiro/pix', [\App\Http\Controllers\PixController::class, 'index'])->middleware('modulo:bancos')->name('pix.index');
+    Route::post('/financeiro/pix', [\App\Http\Controllers\PixController::class, 'store'])->middleware('throttle:10,1')->middleware('modulo:bancos')->name('pix.store');
+    Route::post('/financeiro/pix/{cobranca}/cancelar-rascunho', [\App\Http\Controllers\PixController::class, 'cancelarRascunho'])->middleware('throttle:10,1')->middleware('modulo:bancos')->name('pix.cancelar-rascunho');
+    Route::post('/financeiro/pix/{cobranca}/confirmar-manual', [\App\Http\Controllers\PixController::class, 'confirmarManual'])->middleware('throttle:10,1')->middleware('modulo:bancos')->name('pix.confirmar-manual');
+    Route::get('/financeiro/bancos', [\App\Http\Controllers\BancoController::class, 'index'])->middleware('modulo:bancos')->name('bancos.index');
+    Route::post('/financeiro/bancos', [\App\Http\Controllers\BancoController::class, 'store'])->middleware('modulo:bancos')->name('bancos.store');
+    Route::put('/financeiro/bancos/{conta}/pix', [\App\Http\Controllers\BancoController::class, 'configurarPix'])->middleware('modulo:bancos')->name('bancos.pix');
+    Route::post('/financeiro/bancos/{conta}/movimentos', [\App\Http\Controllers\BancoController::class, 'movimento'])->middleware('modulo:bancos')->name('bancos.movimento');
+    Route::post('/financeiro/bancos/{conta}/importar-ofx', [\App\Http\Controllers\BancoController::class, 'importarOfx'])->middleware('modulo:bancos')->name('bancos.importar.ofx');
+    Route::post('/financeiro/bancos/movimentos/{movimento}/conciliar', [\App\Http\Controllers\BancoController::class, 'conciliar'])->middleware('modulo:bancos')->name('bancos.conciliar');
+    Route::post('/financeiro/bancos/movimentos/{movimento}/desfazer', [\App\Http\Controllers\BancoController::class, 'desfazerConciliacao'])->middleware('modulo:bancos')->name('bancos.desfazer');
+    Route::post('/financeiro/bancos/{conta}/importar-csv', [\App\Http\Controllers\BancoController::class, 'importarCsv'])->middleware('modulo:bancos')->name('bancos.importar');
 
     Route::post('/sair', [AuthController::class, 'sair'])->name('logout');
     Route::get('/', PainelController::class)->name('painel');
@@ -74,16 +74,16 @@ Route::middleware('auth')->group(function () {
     // Recepção por placa
     Route::get('/recepcao', [RecepcaoController::class, 'index'])->name('recepcao');
     Route::view('/tutorial', 'tutorial')->name('tutorial');
-    Route::get('/condutores/cnh', [\App\Http\Controllers\ConferenciaCnhController::class, 'index'])->name('cnh.index');
-    Route::prefix('configuracoes/integracoes/cnh')->name('cnh.integracoes.')->group(function () {
+    Route::get('/condutores/cnh', [\App\Http\Controllers\ConferenciaCnhController::class, 'index'])->middleware('modulo:condutores')->name('cnh.index');
+    Route::prefix('configuracoes/integracoes/cnh')->name('cnh.integracoes.')->middleware('modulo:condutores')->group(function () {
         Route::get('/', [\App\Http\Controllers\CnhIntegracaoController::class, 'index'])->name('index');
         Route::put('/retencao', [\App\Http\Controllers\CnhIntegracaoController::class, 'salvarRetencao'])->name('retencao');
         Route::put('/{provedor}', [\App\Http\Controllers\CnhIntegracaoController::class, 'salvar'])->name('salvar');
         Route::post('/{provedor}/testar', [\App\Http\Controllers\CnhIntegracaoController::class, 'testar'])->middleware('throttle:5,1')->name('testar');
         Route::post('/{provedor}/estado', [\App\Http\Controllers\CnhIntegracaoController::class, 'estado'])->name('estado');
     });
-    Route::post('/condutores/cnh', [\App\Http\Controllers\ConferenciaCnhController::class, 'store'])->middleware('throttle:20,1')->name('cnh.store');
-    Route::post('/condutores/cnh/consultar', [\App\Http\Controllers\ConferenciaCnhController::class, 'consultar'])->middleware('throttle:5,1')->name('cnh.consultar');
+    Route::post('/condutores/cnh', [\App\Http\Controllers\ConferenciaCnhController::class, 'store'])->middleware('modulo:condutores')->middleware('throttle:20,1')->name('cnh.store');
+    Route::post('/condutores/cnh/consultar', [\App\Http\Controllers\ConferenciaCnhController::class, 'consultar'])->middleware('modulo:condutores')->middleware('throttle:5,1')->name('cnh.consultar');
     Route::prefix('mobilidade')->name('mobilidade.')->group(function () {
         Route::get('/', [\App\Http\Controllers\MobilidadeController::class, 'index'])->name('index');
         Route::post('/condutores', [\App\Http\Controllers\MobilidadeController::class, 'condutor'])->name('condutor.store');

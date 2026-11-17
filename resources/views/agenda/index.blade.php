@@ -11,9 +11,12 @@
             <h1>Agenda da oficina</h1>
             <p class="text-suave">Organize horários, confirme visitas e abra a OS na chegada.</p>
         </div>
+        <div class="flex flex-wrap gap-2">
+        <a href="{{ route('lembretes.index') }}" class="btn">Lembretes de revisão</a>
         @can('agenda.editar')
             <a href="{{ $editando ? route('agenda.index', ['semana' => $inicio->toDateString()]) : '' }}#form-agenda" class="btn-sinal">Novo agendamento</a>
         @endcan
+        </div>
     </div>
 
     @if ($solicitacoes->isNotEmpty())

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Empresa;
 use App\Support\Documento;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -61,7 +62,15 @@ class EmpresaController extends Controller
             $dados['fiscal_token'] = null;
         }
         $dados['estoque_negativo'] = $request->boolean('estoque_negativo');
-        $dados['modulo_locacao'] = $request->boolean('modulo_locacao');
+        if ($request->boolean('modulos_enviados')) {
+            $escolhidos = array_values(array_intersect(array_keys(Empresa::MODULOS), (array) $request->input('modulos', [])));
+            $dados['modulo_locacao'] = in_array('locacao', $escolhidos, true);
+            // Locação usa condutores e CNH: liga junto.
+            if ($dados['modulo_locacao'] && ! in_array('condutores', $escolhidos, true)) {
+                $escolhidos[] = 'condutores';
+            }
+            $dados['modulos'] = array_values(array_diff($escolhidos, ['locacao']));
+        }
         $empresa->update($dados);
 
         return back()->with('ok', 'Dados da empresa salvos.');

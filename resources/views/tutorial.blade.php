@@ -87,7 +87,7 @@
         <li id="locacao" class="card card-corpo">
             <h2>Locação: carro reserva e aluguel</h2>
             <ol class="mt-2 list-decimal space-y-2 pl-5">
-                <li>Ligue o módulo em <strong>Empresa → Usar o módulo de Locação</strong>. Desligado, nada de Locação aparece no sistema.</li>
+                <li>Ligue o módulo em <strong>Ajustes › Empresa e módulos › Módulos</strong>. Desligado, nada de Locação aparece no sistema.</li>
                 <li>Em <strong>Locação → Reservas e frota</strong>, cadastre os carros da frota.</li>
                 <li><strong>Carro reserva</strong>: para o cliente que deixou o carro na oficina. Escolha a OS (ou clique em <strong>Carro reserva</strong> dentro da OS). Pode ser carro da frota ou de locadora parceira, cobrado ou cortesia.</li>
                 <li><strong>Aluguel</strong>: aluguel comum, sem OS. Escolha o cliente e um carro da frota.</li>
