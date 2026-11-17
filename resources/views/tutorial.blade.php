@@ -71,20 +71,31 @@
             <p class="mt-2">Na OS, abra <strong>Compras e serviços terceirizados</strong>. Compare cotações de peças aprovadas e vincule o item da nota depois da entrada por XML. Para retífica e outros parceiros, informe custo, responsável, prazo e situação do retorno.</p>
             <p class="mt-2">Em <strong>Garantias e devoluções</strong>, crie a OS de retorno a partir da ocorrência. Registre cortesias com valor zero e envie itens cobrados para aprovação. Use a <strong>Ficha de troca de óleo</strong> para guardar especificação, volume, filtro e quilometragem no histórico do veículo.</p>
             <p class="mt-2">O cliente pode solicitar um horário no portal. A recepção responde em <strong>Agenda → Solicitações do portal</strong> e pode criar a OS vinculada ao agendamento na chegada.</p>
-            <p class="mt-2">Na retirada, use <strong>Mobilidade e retirada</strong> na OS para registrar o condutor e a autorização antes de entregar o veículo.</p>
+            <p class="mt-2">Na retirada, use o botão <strong>Retirada</strong> na OS para registrar o condutor e a autorização antes de entregar o veículo.</p>
             <p class="mt-2">Para compartilhar o acompanhamento, clique em <strong>Portal do cliente</strong> na OS ou na ficha em <strong>Clientes</strong>. Clique em <strong>Criar link do portal</strong> e copie ou envie o link pelo WhatsApp, quando disponível. O cliente abre o link sem senha para ver os veículos, o andamento, os orçamentos disponíveis, as garantias e as próximas revisões. Envie apenas ao titular e use <strong>Desativar</strong> se precisar revogar o acesso.</p>
             @can('caixa.operar')<a class="btn btn-sm mt-3" href="{{ route('caixa.index') }}">Abrir Caixa</a>@endcan
         </li>
         <li id="mobilidade" class="card card-corpo">
-            <h2>Mobilidade, CNH e carro reserva</h2>
+            <h2>Condutores, CNH e retirada</h2>
             <ol class="mt-2 list-decimal space-y-2 pl-5">
-                <li>Em <strong>Mobilidade → Condutores</strong>, cadastre a pessoa e abra <strong>Consulta e Verificação de CNH</strong>. Fotografe ou selecione a imagem. O navegador tenta ler os dados e detectar o QR. Compare com o documento e registre validade, categoria e resultado da conferência.</li>
+                <li>Em <strong>Condutores e retirada</strong>, cadastre a pessoa e abra <strong>Consulta e Verificação de CNH</strong>. Fotografe ou selecione a imagem. O navegador tenta ler os dados e detectar o QR. Compare com o documento e registre validade, categoria e resultado da conferência.</li>
                 <li>A leitura local auxilia a comparação dos dados. Autenticidade e situação atual do direito de dirigir aparecem separadamente. Se a oficina exigir confirmação oficial, a liberação fica bloqueada enquanto a integração estiver indisponível.</li>
-                <li>Para retirada, abra Mobilidade pela OS, selecione o condutor e registre o aceite. Quando for um terceiro, anote a autorização do responsável. Conclua a entrega pela OS.</li>
-                <li>Cadastre o carro na frota e vincule a reserva à OS. Informe o período e selecione carro reserva, locação própria ou parceira. Registre quilometragem, combustível, vistoria e fotos na entrega e na devolução.</li>
-                <li>Em <strong>Contratos e vistorias</strong>, o dono ou gerente pode editar os modelos. Gere o termo pelo registro de origem e use <strong>Imprimir / salvar PDF</strong>. A devolução da locação própria gera um único título quando há valor a cobrar. A caução é registrada à parte.</li>
+                <li>Para retirada, clique em <strong>Retirada</strong> na OS, selecione o condutor e registre o aceite. Quando for um terceiro, anote a autorização do responsável. Conclua a entrega pela OS.</li>
             </ol>
         </li>
+        @can('locacao.ver')
+        <li id="locacao" class="card card-corpo">
+            <h2>Locação: carro reserva e aluguel</h2>
+            <ol class="mt-2 list-decimal space-y-2 pl-5">
+                <li>Ligue o módulo em <strong>Empresa → Usar o módulo de Locação</strong>. Desligado, nada de Locação aparece no sistema.</li>
+                <li>Em <strong>Locação → Reservas e frota</strong>, cadastre os carros da frota.</li>
+                <li><strong>Carro reserva</strong>: para o cliente que deixou o carro na oficina. Escolha a OS (ou clique em <strong>Carro reserva</strong> dentro da OS). Pode ser carro da frota ou de locadora parceira, cobrado ou cortesia.</li>
+                <li><strong>Aluguel</strong>: aluguel comum, sem OS. Escolha o cliente e um carro da frota.</li>
+                <li>Registre quilometragem, combustível, vistoria e fotos na saída e na devolução. Na devolução, diárias e taxas viram um título em <strong>Contas a receber</strong>, na categoria Locação, separado da oficina no <strong>Resumo do mês</strong>. A caução é registrada à parte.</li>
+                <li>Em <strong>Contratos e vistorias</strong>, o dono ou gerente edita os modelos. Gere o contrato dentro da reserva e use <strong>Imprimir / salvar PDF</strong>.</li>
+            </ol>
+        </li>
+        @endcan
 
         <li id="produtos" class="card card-corpo">
             <h2>4. Cadastre produtos e controle o estoque</h2>

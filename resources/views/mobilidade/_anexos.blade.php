@@ -3,7 +3,7 @@
         @foreach ($fotos as $foto)<a class="btn btn-sm" href="{{ route('mobilidade.foto', $foto) }}" target="_blank" rel="noopener">Foto {{ $foto->etapa }} #{{ $foto->id }}</a>@endforeach
     </div>
 @endif
-@can('mobilidade.editar')
+@can($permissao ?? 'mobilidade.editar')
     @foreach ($etapas as $etapa)
         <form method="post" enctype="multipart/form-data" action="{{ route('mobilidade.foto.store') }}" class="my-3 flex flex-wrap items-end gap-2">
             @csrf

@@ -92,11 +92,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/condutores/{condutor}/verificar', [\App\Http\Controllers\MobilidadeController::class, 'verificar'])->name('condutor.verificar');
         Route::post('/condutores/{condutor}/consultar', [\App\Http\Controllers\CnhConsultaController::class, 'store'])->middleware('throttle:5,1')->name('condutor.consultar');
         Route::post('/os/{os}/retirada', [\App\Http\Controllers\MobilidadeController::class, 'retirada'])->name('retirada.store');
-        Route::post('/frota', [\App\Http\Controllers\MobilidadeController::class, 'frota'])->name('frota.store');
-        Route::put('/frota/{frota}', [\App\Http\Controllers\MobilidadeController::class, 'frota'])->name('frota.update');
-        Route::post('/reservas', [\App\Http\Controllers\MobilidadeController::class, 'reservar'])->name('reserva.store');
-        Route::post('/reservas/{reserva}/{acao}', [\App\Http\Controllers\MobilidadeController::class, 'movimentar'])
-            ->whereIn('acao', ['entregar', 'devolver', 'prorrogar', 'cancelar'])->name('reserva.acao');
         Route::put('/politica', [\App\Http\Controllers\MobilidadeController::class, 'politica'])->name('politica');
         Route::get('/documentos', [\App\Http\Controllers\MobilidadeDocumentoController::class, 'index'])->name('documentos');
         Route::put('/modelos/{tipo}', [\App\Http\Controllers\MobilidadeDocumentoController::class, 'modelo'])->name('modelo');
@@ -104,6 +99,15 @@ Route::middleware('auth')->group(function () {
         Route::get('/documentos/{documento}', [\App\Http\Controllers\MobilidadeDocumentoController::class, 'mostrar'])->name('documento');
         Route::post('/fotos', [\App\Http\Controllers\MobilidadeDocumentoController::class, 'anexar'])->name('foto.store');
         Route::get('/fotos/{foto}', [\App\Http\Controllers\MobilidadeDocumentoController::class, 'foto'])->name('foto');
+    });
+    // Locação (módulo ligado por empresa): carro reserva ligado à OS e aluguel sem OS.
+    Route::prefix('locacao')->name('locacao.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\LocacaoController::class, 'index'])->name('index');
+        Route::post('/frota', [\App\Http\Controllers\LocacaoController::class, 'frota'])->name('frota.store');
+        Route::put('/frota/{frota}', [\App\Http\Controllers\LocacaoController::class, 'frota'])->name('frota.update');
+        Route::post('/reservas', [\App\Http\Controllers\LocacaoController::class, 'reservar'])->name('reserva.store');
+        Route::post('/reservas/{reserva}/{acao}', [\App\Http\Controllers\LocacaoController::class, 'movimentar'])
+            ->whereIn('acao', ['entregar', 'devolver', 'prorrogar', 'cancelar'])->name('reserva.acao');
     });
     Route::get('/recepcao/placa', [RecepcaoController::class, 'buscar'])->middleware('throttle:placa')->name('recepcao.buscar');
 

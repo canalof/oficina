@@ -1,13 +1,17 @@
 <x-app titulo="Contratos e vistorias">
     <h1>Contratos e vistorias</h1>
-    <a class="btn my-4" href="{{ route('mobilidade.index') }}">Voltar para Mobilidade</a>
-    <p class="mb-4 text-suave">Gere documentos nos registros de retirada e reserva. Cada documento guarda o texto do momento em que foi gerado.</p>
+    <div class="my-4 flex flex-wrap gap-2">
+        @can('mobilidade.ver')<a class="btn" href="{{ route('mobilidade.index') }}">Voltar para Condutores e retirada</a>@endcan
+        @can('locacao.ver')<a class="btn" href="{{ route('locacao.index') }}">Voltar para Locação</a>@endcan
+    </div>
+    <p class="mb-4 text-suave">Gere os documentos dentro de cada retirada ou reserva. Cada documento guarda o texto do momento em que foi gerado.</p>
     @if ($errors->any())<p class="erro-msg mb-4">{{ $errors->first() }}</p>@endif
     @if (session('ok'))<p class="mb-4" role="status">{{ session('ok') }}</p>@endif
-    @can('mobilidade.excecao')
+    @if (auth()->user()->can('mobilidade.excecao') || auth()->user()->can('locacao.excecao'))
         <section class="card card-corpo mb-4 space-y-3">
             <h2>Modelos da oficina</h2>
             @foreach ($tipos as $tipo => $rotulo)
+                @continue(! auth()->user()->can(in_array($tipo, \App\Http\Controllers\MobilidadeDocumentoController::DA_RETIRADA, true) ? 'mobilidade.excecao' : 'locacao.excecao'))
                 <details>
                     <summary class="cursor-pointer">{{ $rotulo }}</summary>
                     <form class="my-3 space-y-3" method="post" action="{{ route('mobilidade.modelo', $tipo) }}">
@@ -18,7 +22,7 @@
                 </details>
             @endforeach
         </section>
-    @endcan
+    @endif
     <section class="card card-corpo space-y-3">
         <h2>Documentos gerados</h2>
         @forelse ($documentos as $documento)

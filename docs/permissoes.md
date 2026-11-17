@@ -29,6 +29,12 @@ Gerada a partir de `App\Support\Perfil::permissoes()`. Regra: negado por padrão
 | Emitir/cancelar notas fiscais (`notas.emitir`) | ✓ | ✓ | ✓ |  | ✓ |  |
 | Ver agenda e lembretes (`agenda.ver`) | ✓ | ✓ | ✓ | ✓ | ✓ |  |
 | Agendar e enviar lembretes (`agenda.editar`) | ✓ | ✓ | ✓ |  | ✓ |  |
+| Condutores, CNH e retirada: ver e registrar (`mobilidade.ver`, `mobilidade.editar`) | ✓ | ✓ | ✓ |  |  |  |
+| Retirada com exceção, regras e modelos da retirada (`mobilidade.excecao`) | ✓ | ✓ |  |  |  |  |
+| Locação: ver, reservar, saída e devolução (`locacao.ver`, `locacao.editar`)* | ✓ | ✓ | ✓ |  |  |  |
+| Locação: modelos de contrato (`locacao.excecao`)* | ✓ | ✓ |  |  |  |  |
+
+\* Só com o módulo de Locação ligado na empresa (Empresa → Usar o módulo de Locação). Desligado, ninguém vê a Locação, nem o dono.
 
 **Administrador da plataforma** (`users.admin_plataforma`): acessa só o painel /plataforma (oficinas, planos, avisos do gateway), com verificação em duas etapas obrigatória. Não vê clientes, OS nem financeiro das oficinas.
 
