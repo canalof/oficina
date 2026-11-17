@@ -3,6 +3,7 @@
 namespace App\Services\Estoque;
 
 use App\Models\Compra;
+use App\Models\Empresa;
 use App\Models\ContaPagar;
 use App\Models\Fornecedor;
 use App\Models\Produto;
@@ -19,6 +20,15 @@ class EntradaCompra
     public function importar(string $xml): Compra
     {
         $d = $this->leitor->ler($xml);
+        // Quando o XML identifica o destinatário, impedir entrada na oficina errada.
+        // XML legado sem <dest> continua importável, mas não comprova destinatário.
+        $empresaId = \App\Support\Tenant::id();
+        $cnpjEmpresa = $empresaId ? preg_replace('/\D/', '', (string) Empresa::find($empresaId)?->cnpj) : '';
+        $destinatario = preg_replace('/\D/', '', (string) ($d['destinatario_cpf_cnpj'] ?? ''));
+        if ($cnpjEmpresa !== '' && $destinatario !== '' && $cnpjEmpresa !== $destinatario) {
+            throw new DomainException('O destinatário da NF-e não corresponde ao CNPJ desta oficina.');
+        }
+
 
         if ($d['chave'] && ($existe = Compra::where('chave', $d['chave'])->first())) {
             throw new DomainException('Esta nota já foi importada (nº '.$existe->numero.').');
@@ -81,12 +91,24 @@ class EntradaCompra
      */
     public function lancar(Compra $compra, array $ligacoes, array $precos = [], ?string $vencimentoUnico = null): void
     {
-        if ($compra->lancada()) {
-            throw new DomainException('Esta nota já foi lançada no estoque.');
-        }
-
         DB::transaction(function () use ($compra, $ligacoes, $precos, $vencimentoUnico) {
+            // Serializa lançamentos concorrentes da mesma compra antes de qualquer escrita.
+            $compra = Compra::whereKey($compra->getKey())->lockForUpdate()->firstOrFail();
+            if ($compra->lancada()) {
+                throw new DomainException('Esta nota já foi lançada no estoque.');
+            }
+            if ($compra->status !== 'rascunho') {
+                throw new DomainException('A compra não está em situação de lançamento.');
+            }
             $compra->load('itens', 'fornecedor');
+
+            // Preços negativos não representam descontos: devem ser recusados antes
+            // de qualquer movimentação de estoque ou criação de contas a pagar.
+            foreach ($precos as $valorCentavos) {
+                if (! is_int($valorCentavos) || $valorCentavos < 0) {
+                    throw new DomainException('Preço de venda inválido para a entrada de compra.');
+                }
+            }
 
             foreach ($compra->itens as $item) {
                 $escolha = $ligacoes[$item->id] ?? ($item->produto_id ?: 'novo');
@@ -113,7 +135,8 @@ class EntradaCompra
                 if (! $produto->codigo_barras && $item->codigo_barras) {
                     $atualizar['codigo_barras'] = $item->codigo_barras;
                 }
-                if (isset($precos[$item->id]) && $precos[$item->id] > 0) {
+                // Zero explícito é válido (cortesia/garantia); ausência do campo preserva o preço existente.
+                if (array_key_exists($item->id, $precos)) {
                     $atualizar['preco_centavos'] = $precos[$item->id];
                 }
                 if ($atualizar) {

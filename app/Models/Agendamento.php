@@ -12,7 +12,7 @@ class Agendamento extends Model
 {
     use Auditavel, PertenceAEmpresa;
 
-    public const STATUS = ['agendado' => 'Agendado', 'confirmado' => 'Confirmado', 'chegou' => 'Chegou', 'faltou' => 'Não veio', 'cancelado' => 'Cancelado'];
+    public const STATUS = ['agendado' => 'Agendado', 'confirmado' => 'Confirmado', 'chegou' => 'Chegou', 'faltou' => 'Não veio', 'cancelado' => 'Cancelado', 'proposto' => 'Proposto ao cliente'];
 
     protected $fillable = ['cliente_id', 'veiculo_id', 'ordem_servico_id', 'user_id', 'nome', 'telefone', 'placa', 'inicio', 'duracao_minutos', 'servico', 'status', 'lembrete_enviado_em', 'observacoes'];
 

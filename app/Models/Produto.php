@@ -14,7 +14,7 @@ class Produto extends Model
 {
     use Auditavel, PertenceAEmpresa, SoftDeletes;
 
-    protected $fillable = ['categoria_id', 'fabricante_id', 'codigo', 'codigo_barras', 'referencia_fabricante', 'nome', 'marca', 'unidade', 'ncm', 'localizacao', 'custo_centavos', 'ultimo_custo_centavos', 'preco_centavos', 'estoque_minimo', 'ativo'];
+    protected $fillable = ['categoria_id', 'fabricante_id', 'codigo', 'codigo_barras', 'referencia_fabricante', 'grupo_equivalencia', 'nome', 'marca', 'unidade', 'ncm', 'localizacao', 'custo_centavos', 'ultimo_custo_centavos', 'preco_centavos', 'estoque_minimo', 'ativo'];
 
     public const UNIDADES = ['UN' => 'Unidade', 'PC' => 'Peça', 'JG' => 'Jogo', 'PAR' => 'Par', 'KIT' => 'Kit', 'CX' => 'Caixa', 'L' => 'Litro', 'ML' => 'Mililitro', 'KG' => 'Quilo', 'G' => 'Grama', 'M' => 'Metro'];
 
@@ -59,10 +59,39 @@ class Produto extends Model
      */
     public function movimentar(float $quantidade, string $tipo, string $origem, ?int $origemId = null, ?int $custoCentavos = null, ?string $observacao = null): EstoqueMovimento
     {
+        // A coluna de saldo tem precisão de três casas decimais. Rejeitar
+        // quantidades que seriam arredondadas para zero evita movimentos
+        // sem efeito e divergências entre saldo e histórico.
+        if (! is_finite($quantidade) || $quantidade == 0.0 || abs($quantidade) < 0.001 || abs($quantidade - round($quantidade, 3)) > 0.0000001) {
+            throw new \DomainException('Quantidade inválida para movimentação de estoque (máximo de três casas decimais).');
+        }
+        if (! in_array($tipo, ['entrada', 'saida', 'ajuste'], true)) {
+            throw new \DomainException('Tipo de movimentação de estoque inválido.');
+        }
+        if ($custoCentavos !== null && $custoCentavos < 0) {
+            throw new \DomainException('Custo unitário não pode ser negativo.');
+        }
+        if (($tipo === 'entrada' && $quantidade < 0) || ($tipo === 'saida' && $quantidade > 0)) {
+            throw new \DomainException('Tipo de movimentação incompatível com o sinal da quantidade.');
+        }
         return DB::transaction(function () use ($quantidade, $tipo, $origem, $origemId, $custoCentavos, $observacao) {
             $atual = static::whereKey($this->id)->lockForUpdate()->first(['estoque', 'custo_centavos']);
+            if (! $atual) {
+                throw new \DomainException('Produto não encontrado nesta oficina ou removido do cadastro.');
+            }
             $anterior = (float) $atual->estoque;
             $saldo = round($anterior + $quantidade, 3);
+            // A validação deve ocorrer com a linha do produto bloqueada.
+            // Conferir o saldo antes da transação permite duas saídas simultâneas
+            // consumirem as mesmas unidades quando a oficina proíbe negativo.
+            if ($quantidade < 0 && $saldo < 0) {
+                $empresaId = \App\Support\Tenant::id();
+                $permiteNegativo = $empresaId !== null
+                    && Empresa::whereKey($empresaId)->where('estoque_negativo', true)->exists();
+                if (! $permiteNegativo) {
+                    throw new \DomainException('Estoque insuficiente para movimentar o produto.');
+                }
+            }
             $dados = ['estoque' => $saldo];
 
             if ($quantidade > 0 && $custoCentavos !== null && in_array($origem, ['compra', 'manual'], true)) {
@@ -94,7 +123,7 @@ class Produto extends Model
     /** Quantidade já prometida em OS aprovadas que ainda não foram entregues. */
     public function reservado(): float
     {
-        return (float) OrdemServicoItem::where('produto_id', $this->id)->where('situacao', 'aprovado')->where('estoque_baixado', false)
+        return (float) OrdemServicoItem::where('produto_id', $this->id)->where('situacao', 'aprovado')->where('tipo', 'peca')->where('estoque_baixado', false)
             ->whereHas('ordemServico', fn ($q) => $q->whereIn('status', ['aprovada', 'em_servico', 'pronta']))
             ->sum('quantidade');
     }

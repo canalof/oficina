@@ -68,6 +68,8 @@ return [
     // Atrás de proxy HTTPS (Codespaces, Cloudflare, balanceador): TRUSTED_PROXIES=* ou lista de IPs
     'trusted_proxies' => env('TRUSTED_PROXIES'),
 
+    'admin_sem_2fa' => env('TORQUE_ADMIN_SEM_2FA'),
+
     'timezone' => env('APP_TIMEZONE', 'America/Sao_Paulo'),
 
     /*

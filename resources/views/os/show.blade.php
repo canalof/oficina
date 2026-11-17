@@ -13,7 +13,7 @@
 @endphp
 <x-app :titulo="'OS '.$os->numeroFormatado()">
     {{-- Cabeçalho --}}
-    <div class="mb-5 flex flex-wrap items-start gap-4">
+    <div id="resumo-os" class="card card-corpo mb-4 flex scroll-mt-24 flex-wrap items-start gap-4 border-t-4 border-t-sinal">
         <x-placa :placa="$os->veiculo->placa" tamanho="md" />
         <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-3">
@@ -24,21 +24,39 @@
                 <a href="{{ route('veiculos.show', $os->veiculo) }}" class="hover:underline">{{ $os->veiculo->descricao() ?: 'Modelo não informado' }}</a>
                 @if ($os->cliente) · <a href="{{ route('clientes.show', $os->cliente) }}" class="hover:underline">{{ $os->cliente->nome }}</a>@endif
             </p>
+            <p class="mt-2 text-sm"><span class="text-suave">Previsão de entrega</span> <strong>{{ $os->previsao_entrega?->format('d/m/Y H:i') ?? 'A definir' }}</strong></p>
         </div>
         <div class="flex flex-wrap gap-2">
             <a href="{{ route('os.imprimir', $os) }}" target="_blank" class="btn">Imprimir</a>
+            <a href="#conversa-interna" class="btn">Conversa interna</a>
+            @can('mobilidade.ver')
+                <a href="{{ route('mobilidade.index', ['os' => $os->id]) }}" class="btn">Mobilidade e retirada</a>
+            @endcan
+            @can('clientes.editar')
+                @if ($os->cliente)<a href="{{ route('clientes.show', $os->cliente) }}#portal-cliente" class="btn">Portal do cliente</a>@endif
+            @endcan
             @can('auditoria.ver')<a href="{{ route('historico', ['os', $os->id]) }}" class="btn">Ver histórico</a>@endcan
-            @if ($podeEditar && $st->noPatio())<a href="{{ route('os.edit', $os) }}" class="btn">Editar entrada</a>@endif
+            @if ($podeEditar && $st->noPatio())<a href="{{ route('os.edit', $os) }}" class="btn">Editar OS</a>@endif
+            @if ($podeEditar && $st->aceitaItens())<a href="#adicionar-item" class="btn-sinal">Adicionar peça ou serviço</a>@endif
         </div>
     </div>
 
+    <nav aria-label="Seções da ordem de serviço" class="sticky top-14 z-10 mb-4 flex gap-2 overflow-x-auto rounded-md border border-linha bg-white p-2 shadow-sm lg:top-0 [&>a]:shrink-0">
+        <a class="btn btn-sm" href="#resumo-os">Resumo</a>
+        <a class="btn btn-sm" href="#itens">Orçamento</a>
+        <a class="btn btn-sm" href="#inspecao">Inspeção</a>
+        <a class="btn btn-sm" href="#fotos">Fotos</a>
+        <a class="btn btn-sm" href="#historico-os">Histórico</a>
+        @if ($st->noPatio())<a class="btn-sinal btn-sm" href="#proximo-passo">{{ $st === StatusOs::Pronta ? 'Retirada' : 'Próxima ação' }}</a>@endif
+    </nav>
+
     {{-- Trilha de etapas --}}
     @if ($st !== StatusOs::Cancelada)
-        <ol class="mb-6 grid grid-cols-6 gap-1 text-xs sm:text-sm" aria-label="Etapas da OS">
+        <ol class="mb-6 grid grid-cols-3 gap-x-2 gap-y-3 text-xs sm:grid-cols-6 sm:text-sm" aria-label="Etapas da OS">
             @foreach ($etapas as $i => $e)
                 <li class="min-w-0" @if($i === $posicao) aria-current="step" @endif>
                     <div @class(['h-1.5 rounded-full', 'bg-asfalto' => $i < $posicao, 'bg-sinal' => $i === $posicao, 'bg-linha' => $i > $posicao])></div>
-                    <div @class(['mt-1.5 truncate', 'font-semibold text-texto' => $i === $posicao, 'text-suave' => $i !== $posicao])>{{ $e === StatusOs::Pronta ? 'Pronta' : $e->rotulo() }}</div>
+                    <div @class(['mt-1.5', 'font-semibold text-texto' => $i === $posicao, 'text-suave' => $i !== $posicao])>{{ $e === StatusOs::Pronta ? 'Pronta' : $e->rotulo() }}</div>
                 </li>
             @endforeach
         </ol>
@@ -50,7 +68,7 @@
 
     {{-- Próximo passo --}}
     @if ($st->noPatio())
-        <section class="card mb-6 border-l-4 border-l-sinal">
+        <section id="proximo-passo" class="card mb-6 scroll-mt-24 border-l-4 border-l-sinal">
             <div class="flex flex-wrap items-center gap-4 px-5 py-4">
                 <div class="min-w-0 flex-1">
                     <div class="text-sm text-suave">Próximo passo</div>
@@ -113,7 +131,7 @@
     <div class="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         <div class="min-w-0 space-y-6">
             {{-- Itens --}}
-            <section class="card" id="itens">
+            <section class="card scroll-mt-24" id="itens">
                 <div class="flex flex-wrap items-center justify-between gap-2 border-b border-linha px-5 py-4">
                     <h2>Serviços e peças</h2>
                     @if ($pendentes->isNotEmpty() && $podeEditar)
@@ -209,7 +227,20 @@
                 @endif
 
                 @if ($podeEditar && $st->aceitaItens())
-                    <form method="post" action="{{ route('os.itens.store', $os) }}" class="border-t border-linha bg-[#fafbfc] px-5 py-4" data-item-form>
+                    @if ($modelosOs->isNotEmpty())
+                        <details class="border-t border-linha px-5 py-4">
+                            <summary class="cursor-pointer font-semibold">Aplicar modelo de OS</summary>
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                @foreach ($modelosOs as $modelo)
+                                    <form method="post" action="{{ route('os.modelo.aplicar', [$os, $modelo]) }}" data-confirmar="Adicionar os itens do modelo {{ $modelo->nome }} ao orçamento?">
+                                        @csrf
+                                        <button class="btn btn-sm">{{ $modelo->nome }}</button>
+                                    </form>
+                                @endforeach
+                            </div>
+                        </details>
+                    @endif
+                    <form id="adicionar-item" method="post" action="{{ route('os.itens.store', $os) }}" class="scroll-mt-16 border-t border-linha bg-[#fafbfc] px-5 py-4" data-item-form>
                         @csrf
                         <div class="mb-3 flex flex-wrap items-center gap-3">
                             <span class="text-sm font-semibold">Adicionar</span>
@@ -228,8 +259,12 @@
                         <label class="campo mb-3 max-w-md" data-so-servico><span>Do catálogo</span>
                             <select name="servico_id" class="input" data-catalogo>
                                 <option value="">Escrever à mão</option>
-                                @foreach ($servicos as $s)
-                                    <option value="{{ $s->id }}" data-preco="{{ Dinheiro::campo($s->preco_centavos) }}" data-nome="{{ $s->nome }}">{{ $s->nome }} · {{ Dinheiro::formatar($s->preco_centavos) }}</option>
+                                @foreach ($servicos->groupBy(fn ($s) => $s->categoria?->nome ?? 'Sem categoria')->sortKeys() as $categoria => $listaServicos)
+                                    <optgroup label="{{ $categoria }}">
+                                        @foreach ($listaServicos as $s)
+                                            <option value="{{ $s->id }}" data-preco="{{ Dinheiro::campo($s->preco_centavos) }}" data-nome="{{ $s->nome }}">{{ $s->nome }} · {{ Dinheiro::formatar($s->preco_centavos) }}</option>
+                                        @endforeach
+                                    </optgroup>
                                 @endforeach
                             </select>
                         </label>
@@ -375,7 +410,20 @@
             @endif
 
             {{-- Fotos --}}
-            <section class="card" id="fotos">
+            @include('os._form-inspecao')
+            @if ($consultasCnh->isNotEmpty())
+                <section class="card card-corpo">
+                    <h2>Consultas de CNH vinculadas à OS</h2>
+                    <p class="text-sm text-suave">Evidências de homologação. Consulte os detalhes no cadastro do condutor.</p>
+                    @foreach ($consultasCnh as $consulta)
+                        <p class="mt-2 text-sm"><a class="underline" href="{{ route('mobilidade.condutor.show', ['condutor' => $consulta->condutor_id, 'os' => $os->id]) }}">{{ $consulta->created_at->format('d/m/Y H:i') }} · {{ \App\Services\Cnh\CatalogoCnh::FORNECEDORES[$consulta->provedor][0] }} · {{ $consulta->status }}</a></p>
+                    @endforeach
+                </section>
+            @endif
+            @include('os._laudo-form')
+            @include('os._operacao')
+            @include('os._garantias')
+            <section class="card scroll-mt-24" id="fotos">
                 <div class="flex items-center justify-between border-b border-linha px-5 py-4">
                     <h2>Fotos ({{ $os->fotos->count() }})</h2>
                     <span class="text-sm text-suave">O cliente vê as fotos no link do orçamento</span>
@@ -471,7 +519,7 @@
             </section>
 
             <section class="card card-corpo">
-                <h2 class="mb-3">Histórico</h2>
+                <h2 id="historico-os" class="mb-3 scroll-mt-24">Histórico</h2>
                 <ol class="space-y-3 text-[15px]">
                     @foreach ($os->eventos as $ev)
                         <li class="relative pl-4 before:absolute before:left-0 before:top-2 before:h-1.5 before:w-1.5 before:rounded-full before:bg-asfalto-3">
@@ -495,6 +543,11 @@
                             @if ($recusados->isNotEmpty())
                                 <li class="-mt-1 text-sm text-suave">Recusado: {{ $recusados->pluck('descricao')->join(', ') }}</li>
                             @endif
+                            @foreach ($o->inspecoes as $inspecao)
+                                @if ($inspecao->revisar_em || $inspecao->revisar_km || $recusados->contains('id', $inspecao->item_id))
+                                    <li class="text-sm text-suave">Revisar {{ $inspecao->componente }}{{ $inspecao->revisar_em ? ' em '.$inspecao->revisar_em->format('d/m/Y') : '' }}{{ $inspecao->revisar_km ? ' aos '.number_format($inspecao->revisar_km, 0, ',', '.').' km' : '' }}</li>
+                                @endif
+                            @endforeach
                         @endforeach
                     </ul>
                 </section>
@@ -524,4 +577,5 @@
             @endif
         </aside>
     </div>
+    @include('os._conversa')
 </x-app>

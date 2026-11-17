@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Cliente;
 use App\Support\Documento;
+use App\Support\StatusOs;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -39,7 +41,8 @@ class ClienteController extends Controller
         }
         $cliente = Cliente::create($dados);
 
-        if ($placa = $request->input('voltar_placa')) {
+        $placa = $request->input('voltar_placa');
+        if ($request->user()->can('veiculos.editar') && ($placa || $request->boolean('continuar_veiculo'))) {
             return redirect()->route('veiculos.create', ['placa' => $placa, 'cliente_id' => $cliente->id])
                 ->with('ok', 'Cliente cadastrado. Agora confira os dados do veículo.');
         }
@@ -60,6 +63,25 @@ class ClienteController extends Controller
         $this->authorize('clientes.editar');
 
         return view('clientes.form', ['cliente' => $cliente, 'voltarPlaca' => null]);
+    }
+
+    public function extratoFrota(Request $request, Cliente $cliente)
+    {
+        $this->authorize('clientes.ver');
+        $this->authorize('financeiro.ver');
+        abort_unless($cliente->tipo_pessoa === 'PJ', 404);
+        $dados = $request->validate(['mes' => ['sometimes', 'required', 'date_format:Y-m']]);
+        $mes = CarbonImmutable::createFromFormat('!Y-m', $dados['mes'] ?? today()->format('Y-m'));
+        $consulta = $cliente->ordens()->where('status', StatusOs::Entregue)
+            ->where('entregue_em', '>=', $mes)->where('entregue_em', '<', $mes->addMonth());
+        $total = (clone $consulta)->sum('total_centavos');
+
+        return response()->view('clientes.extrato-frota', [
+            'cliente' => $cliente,
+            'mes' => $mes->format('Y-m'),
+            'ordens' => $consulta->with('veiculo')->paginate(50)->withQueryString(),
+            'total' => (int) $total,
+        ])->header('Cache-Control', 'private, no-store');
     }
 
     public function update(Request $request, Cliente $cliente)

@@ -90,17 +90,34 @@ class Veiculo extends Model
         });
     }
 
-    /** Troca o dono e guarda o histórico. */
+    /** Troca o dono uma única vez, com o veículo bloqueado e histórico consistente. */
     public function transferirPara(?Cliente $novo): void
     {
         DB::transaction(function () use ($novo) {
-            $hoje = now()->toDateString();
-            VeiculoDono::where('veiculo_id', $this->id)->whereNull('fim')->update(['fim' => $hoje]);
+            $atual = static::whereKey($this->getKey())->lockForUpdate()->firstOrFail();
             if ($novo) {
-                VeiculoDono::create(['veiculo_id' => $this->id, 'cliente_id' => $novo->id, 'inicio' => $hoje]);
+                // A validação no controller não substitui a validação na escrita.
+                // Rejeita também um cliente removido após o formulário ter sido aberto.
+                if (! Cliente::whereKey($novo->getKey())->exists()) {
+                    throw new \DomainException('O novo proprietário não pertence a esta oficina ou foi excluído.');
+                }
             }
-            $this->cliente_id = $novo?->id;
-            $this->save();
-        });
+            $novoId = $novo?->getKey();
+            if ((int) $atual->cliente_id === (int) $novoId) {
+                $this->cliente_id = $atual->cliente_id;
+                $this->syncOriginalAttribute('cliente_id');
+                return; // Idempotente: não fecha/reabre histórico do mesmo dono.
+            }
+
+            $hoje = now()->toDateString();
+            VeiculoDono::where('veiculo_id', $atual->id)->whereNull('fim')->update(['fim' => $hoje]);
+            if ($novoId !== null) {
+                VeiculoDono::create(['veiculo_id' => $atual->id, 'cliente_id' => $novoId, 'inicio' => $hoje]);
+            }
+            $atual->cliente_id = $novoId;
+            $atual->save();
+            $this->cliente_id = $novoId;
+            $this->syncOriginalAttribute('cliente_id');
+        }, 3);
     }
 }

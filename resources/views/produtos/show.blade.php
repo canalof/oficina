@@ -19,6 +19,17 @@
         <div class="card card-corpo"><div class="text-sm text-suave">Onde fica</div><div class="mt-1 text-xl font-semibold">{{ $produto->localizacao ?: '—' }}</div></div>
     </div>
 
+    @if ($produto->grupo_equivalencia)
+        <section class="card card-corpo mb-6 space-y-2">
+            <h2>Peças equivalentes · {{ $produto->grupo_equivalencia }}</h2>
+            <p class="text-sm text-suave">Grupo definido pela oficina. Confira a aplicação no veículo antes de usar.</p>
+            @forelse ($similares as $similar)
+                <p><a class="underline" href="{{ route('produtos.show', $similar) }}">{{ $similar->nome }}</a> · {{ $similar->estoqueFormatado() }} em estoque · {{ Dinheiro::formatar($similar->preco_centavos) }}</p>
+            @empty
+                <p>Nenhum outro produto ativo do grupo com a mesma unidade.</p>
+            @endforelse
+        </section>
+    @endif
     <div class="grid gap-6 lg:grid-cols-[1.6fr_1fr] [&>*]:min-w-0">
         <section class="card overflow-x-auto">
             <div class="border-b border-linha px-5 py-4"><h2>Movimentações</h2></div>

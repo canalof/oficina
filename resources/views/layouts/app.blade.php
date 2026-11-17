@@ -7,6 +7,7 @@
     <meta name="robots" content="noindex,nofollow">
     <title>{{ $titulo ?? 'Torque' }} · {{ auth()->user()->empresa->nome_fantasia }}</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    @include('partials.pwa')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen">
@@ -15,10 +16,12 @@
         null => [
             ['painel', 'Painel', 'M3 13h8V3H3zm10 8h8V11h-8zM3 21h8v-6H3zm10-18v6h8V3z', null],
             ['recepcao', 'Recepção', 'M4 7h16M4 12h16M4 17h10', 'veiculos.ver'],
+            ['tutorial', 'Tutorial', 'M12 17v.01M9 9a3 3 0 1 1 4 2.8c-.7.3-1 1-1 2.2M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z', null],
             ['agenda.index', 'Agenda', 'M7 3v4M17 3v4M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z', 'agenda.ver'],
             ['os.index', 'Ordens de serviço', 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h4', 'os.ver'],
             ['clientes.index', 'Clientes', 'M16 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0zM4 21c0-4 4-6 8-6s8 2 8 6', 'clientes.ver'],
             ['veiculos.index', 'Veículos', 'M5 16h14l-1.5-5.5A2 2 0 0 0 15.6 9H8.4a2 2 0 0 0-1.9 1.5zM7 16v2M17 16v2M7.5 13h.01M16.5 13h.01', 'veiculos.ver'],
+            ['mobilidade.index', 'Mobilidade', 'M3 5h18v14H3zM7 10h3M7 14h3M13 10h5M13 14h5', 'mobilidade.ver'],
             ['lembretes.index', 'Lembretes de revisão', 'M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0', 'agenda.ver'],
         ],
         'Estoque' => [
@@ -31,6 +34,8 @@
             ['caixa.index', 'Caixa', 'M3 7h18v12H3zM3 11h18M7 15h3', 'caixa.operar'],
             ['receber.index', 'Contas a receber', 'M12 3v18M17 8l-5-5-5 5', 'financeiro.ver'],
             ['pagar.index', 'Contas a pagar', 'M12 21V3M7 16l5 5 5-5', 'financeiro.ver'],
+            ['bancos.index', 'Bancos', 'M3 9l9-5 9 5M4 20h16M6 10v7M12 10v7M18 10v7', 'financeiro.ver'],
+            ['pix.index', 'Pix', 'M12 3l9 9-9 9-9-9zM8 12h8', 'financeiro.ver'],
             ['comissoes.index', 'Comissões', 'M19 5L5 19M6.5 9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM17.5 20a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z', 'comissoes.ver'],
             ['relatorio.index', 'Resumo do mês', 'M4 20V10M10 20V4M16 20v-7M22 20H2', 'financeiro.ver'],
             ['notas.index', 'Notas fiscais', 'M6 2h9l5 5v15H6zM14 2v6h6M9 13h6M9 17h6M9 9h2', 'notas.emitir'],
@@ -40,15 +45,16 @@
             ['plataforma.index', 'Plataforma', 'M12 2l9 5-9 5-9-5 9-5zM3 12l9 5 9-5M3 17l9 5 9-5', 'plataforma'],
             ['usuarios.index', 'Usuários', 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20c0-3 3-5 6-5s6 2 6 5M17 11a3 3 0 0 0 0-6M21 20c0-2-1.5-4-4-4.7', 'usuarios.gerenciar'],
             ['empresa.edit', 'Empresa', 'M4 21V5l8-2 8 2v16M9 21v-4h6v4M8 9h.01M12 9h.01M16 9h.01M8 13h.01M12 13h.01M16 13h.01', 'empresa.configurar'],
+            ['cnh.integracoes.index', 'Integrações de CNH', 'M8 12h8M10 8l2-2a4 4 0 0 1 6 6l-2 2M14 16l-2 2a4 4 0 0 1-6-6l2-2', 'empresa.configurar'],
         ],
     ];
 @endphp
 <div class="lg:flex">
     <aside class="fixed inset-y-0 left-0 z-40 flex w-64 -translate-x-full flex-col bg-asfalto text-[#c5ced6] transition-transform lg:sticky lg:top-0 lg:h-screen lg:shrink-0 lg:translate-x-0 [.menu-aberto_&]:translate-x-0" aria-label="Menu principal">
         <div class="flex h-16 shrink-0 items-center gap-3 border-b border-asfalto-2 px-5">
-            <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#f2a900"/><path d="M8 11h16M16 11v13" stroke="#1f2a33" stroke-width="4" stroke-linecap="round"/></svg>
+            <img src="/favicon.svg" width="30" height="30" class="rounded-md" alt="">
             <div>
-                <div class="text-lg font-bold leading-none tracking-tight text-white">Torque</div>
+                <div class="text-lg font-bold leading-none tracking-tight text-white">TORQUE</div>
                 <div class="mt-1 max-w-[160px] truncate text-xs text-[#8d9aa6]">{{ auth()->user()->empresa->nome_fantasia }}</div>
             </div>
         </div>
@@ -102,7 +108,11 @@
                 @endif
             @endif
             @include('partials.flash')
-            {{ $slot }}
+            @isset($slot)
+                {{ $slot }}
+            @else
+                @yield('content')
+            @endisset
         </main>
     </div>
 </div>

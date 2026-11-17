@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ContaPagar;
 use App\Models\ContaReceber;
 use App\Models\OrdemServico;
+use App\Support\CsvSeguro;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -15,7 +16,7 @@ class ExportacaoController extends Controller
     {
         $this->authorize('financeiro.ver');
         $m = (string) $request->query('mes', now()->format('Y-m'));
-        $ini = preg_match('/^\d{4}-\d{2}$/', $m) ? Carbon::createFromFormat('Y-m-d', $m.'-01')->startOfDay() : now()->startOfMonth();
+        $ini = preg_match('/^(?!0000)\d{4}-(?:0[1-9]|1[0-2])$/D', $m) ? Carbon::createFromFormat('Y-m-d', $m.'-01')->startOfDay() : now()->startOfMonth();
         $fim = $ini->copy()->endOfMonth();
         $r = fn (?int $c) => number_format(($c ?? 0) / 100, 2, ',', '');
 
@@ -44,7 +45,7 @@ class ExportacaoController extends Controller
             fwrite($f, "\xEF\xBB\xBF"); // acentos certos no Excel
             fputcsv($f, $cabecalho, ';', '"', '');
             foreach ($linhas as $l) {
-                fputcsv($f, array_map(fn ($v) => is_string($v) && preg_match('/^[=+\-@]/', $v) ? "'".$v : $v, $l), ';', '"', ''); // evita fórmula injetada
+                fputcsv($f, array_map(CsvSeguro::celula(...), $l), ';', '"', ''); // evita fórmula injetada
             }
             fclose($f);
         }, "torque-{$tipo}-{$ini->format('Y-m')}.csv", ['Content-Type' => 'text/csv; charset=UTF-8']);

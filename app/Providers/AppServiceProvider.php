@@ -51,7 +51,7 @@ class AppServiceProvider extends ServiceProvider
             Gate::define($permissao, fn (User $user) => $user->pode($permissao));
         }
 
-        Gate::define('plataforma', fn (User $u) => $u->admin_plataforma && $u->doisFatoresAtivo());
+        Gate::define('plataforma', fn (User $u) => $u->admin_plataforma && (! $u->exigeDoisFatores() || $u->doisFatoresAtivo()));
 
         Paginator::defaultView('partials.paginacao');
         Password::defaults(fn () => Password::min(8));

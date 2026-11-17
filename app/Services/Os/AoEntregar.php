@@ -18,32 +18,85 @@ class AoEntregar
     public function executar(OrdemServico $os): void
     {
         $os->load(['itens.produto', 'itens.servico', 'veiculo']);
+        $this->validarPecasDaEntrega($os);
         $this->baixarEstoque($os);
         $this->gerarComissoes($os);
         $this->gerarLembretes($os);
     }
 
+    /**
+     * A entrega não pode concluir parcialmente quando uma peça aprovada foi
+     * excluída, está inacessível ou possui quantidade inválida. A exceção
+     * reverte a transação da OS e qualquer lançamento anterior.
+     */
+    private function validarPecasDaEntrega(OrdemServico $os): void
+    {
+        foreach ($os->itens as $item) {
+            if ($item->situacao !== 'aprovado' || $item->estoque_baixado || $item->tipo !== 'peca') {
+                continue;
+            }
+            if (! $item->produto_id || ! $item->produto) {
+                throw new \DomainException('Peça aprovada não encontrada no estoque. Regularize o cadastro antes da entrega.');
+            }
+            $quantidade = (float) $item->quantidade;
+            if (! is_finite($quantidade) || $quantidade <= 0) {
+                throw new \DomainException('Peça aprovada com quantidade inválida. Corrija a OS antes da entrega.');
+            }
+        }
+    }
+
     private function baixarEstoque(OrdemServico $os): void
     {
-        $permiteNegativo = (bool) (\App\Models\Empresa::whereKey($os->empresa_id)->value('estoque_negativo') ?? true);
+        // Bloqueia os produtos em ordem estável para reduzir deadlocks entre
+        // entregas simultâneas que utilizam as mesmas peças.
+        $pendentes = $os->itens->filter(fn ($item) =>
+            $item->situacao === 'aprovado' && $item->tipo === 'peca'
+            && ! $item->estoque_baixado
+        );
+        if ($pendentes->isEmpty()) {
+            return;
+        }
+
+        $ids = $pendentes->pluck('produto_id')->unique()->sort()->values();
+        $produtos = \App\Models\Produto::whereIn('id', $ids->all())
+            ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+
+        $necessario = [];
+        foreach ($pendentes as $item) {
+            $produto = $produtos->get($item->produto_id);
+            if (! $produto) {
+                throw new \DomainException('Peça aprovada não encontrada nesta oficina. Regularize o cadastro antes da entrega.');
+            }
+            $qtd = (float) $item->quantidade;
+            if (! is_finite($qtd) || $qtd <= 0 || abs($qtd - round($qtd, 3)) > 0.0000001) {
+                throw new \DomainException('Quantidade de peça inválida para entrega.');
+            }
+            $necessario[$produto->id] = ($necessario[$produto->id] ?? 0) + $qtd;
+        }
+
+        // Falha fechada: ausência da configuração não autoriza estoque negativo.
+        $permiteNegativo = \App\Models\Empresa::whereKey($os->empresa_id)
+            ->where('estoque_negativo', true)->exists();
         if (! $permiteNegativo) {
             $faltam = [];
-            foreach ($os->itens->where('situacao', 'aprovado')->where('estoque_baixado', false)->whereNotNull('produto_id')->groupBy('produto_id') as $itens) {
-                $p = $itens->first()->produto;
-                $precisa = (float) $itens->sum('quantidade');
-                if ($p && (float) $p->fresh()->estoque < $precisa) {
-                    $faltam[] = $p->nome.' (tem '.\App\Models\Produto::formatarQtd($p->fresh()->estoque).', precisa '.\App\Models\Produto::formatarQtd($precisa).')';
+            foreach ($necessario as $produtoId => $qtd) {
+                $produto = $produtos->get($produtoId);
+                if (round((float) $produto->estoque - $qtd, 3) < 0) {
+                    $faltam[] = $produto->nome.' (tem '.\App\Models\Produto::formatarQtd($produto->estoque)
+                        .', precisa '.\App\Models\Produto::formatarQtd($qtd).')';
                 }
             }
             if ($faltam) {
                 throw new \DomainException('Estoque insuficiente: '.implode('; ', $faltam).'. Dê entrada nas peças antes de entregar.');
             }
         }
-        foreach ($os->itens as $item) {
-            if ($item->situacao !== 'aprovado' || ! $item->produto_id || $item->estoque_baixado || ! $item->produto) {
-                continue;
-            }
-            $item->produto->movimentar(-(float) $item->quantidade, 'saida', 'os', $os->id, $item->produto->custo_centavos, 'OS '.$os->numeroFormatado());
+
+        // O chamador executa a entrega em transação. Movimentar também usa
+        // transação aninhada; qualquer falha reverte todas as peças e a OS.
+        foreach ($pendentes as $item) {
+            $produto = $produtos->get($item->produto_id);
+            $produto->movimentar(-(float) $item->quantidade, 'saida', 'os', $os->id,
+                $produto->custo_centavos, 'OS '.$os->numeroFormatado());
             $item->update(['estoque_baixado' => true]);
         }
     }
@@ -51,7 +104,8 @@ class AoEntregar
     private function gerarComissoes(OrdemServico $os): void
     {
         $sub = (int) $os->itens->where('situacao', 'aprovado')->sum('total_centavos');
-        if ($sub === 0) {
+        if ($sub <= 0) {
+            // Subtotal nulo/negativo não pode originar comissão.
             return;
         }
         $fator = $os->total_centavos / $sub; // aplica o desconto proporcionalmente
@@ -84,7 +138,7 @@ class AoEntregar
     {
         foreach ($os->itens as $item) {
             $s = $item->servico;
-            if ($item->situacao !== 'aprovado' || ! $s || (! $s->revisao_meses && ! $s->revisao_km)) {
+            if ($item->situacao !== 'aprovado' || $item->tipo !== 'servico' || ! $s || (! $s->revisao_meses && ! $s->revisao_km)) {
                 continue;
             }
             // Substitui o lembrete antigo do mesmo serviço para este carro

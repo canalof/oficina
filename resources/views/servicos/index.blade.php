@@ -3,6 +3,10 @@
     <div class="mb-5">
         <h1>Catálogo de serviços</h1>
         <p class="text-suave">Serviços com preço padrão. No orçamento é só escolher; o valor ainda pode ser ajustado em cada OS.</p>
+        <div class="mt-3 flex flex-wrap gap-2">
+            <a href="{{ route('auxiliar.index', 'categorias-servico') }}" class="btn">Categorias de serviços</a>
+            @if ($pode)<a href="{{ route('modelos-os.index') }}" class="btn">Modelos de OS</a>@endif
+        </div>
     </div>
 
     <div class="grid gap-6 lg:grid-cols-[1.6fr_1fr] [&>*]:min-w-0">
@@ -18,7 +22,9 @@
                     <tbody>
                     @forelse ($servicos as $s)
                         <tr @class(['opacity-55' => ! $s->ativo])>
-                            <td class="font-medium">{{ $s->nome }}@unless($s->ativo) <span class="text-xs text-suave">(inativo)</span>@endunless</td>
+                            <td class="font-medium">{{ $s->nome }}@unless($s->ativo) <span class="text-xs text-suave">(inativo)</span>@endunless
+                                @if ($s->categoria)<p class="text-sm font-normal text-suave">{{ $s->categoria->nome }}</p>@endif
+                            </td>
                             <td class="whitespace-nowrap text-right">{{ Dinheiro::formatar($s->preco_centavos) }}</td>
                             <td class="hidden whitespace-nowrap text-right sm:table-cell">{{ $s->tempo_minutos ? ($s->tempo_minutos >= 60 ? intdiv($s->tempo_minutos, 60).'h'.($s->tempo_minutos % 60 ? str_pad($s->tempo_minutos % 60, 2, '0', STR_PAD_LEFT) : '') : $s->tempo_minutos.' min') : '—' }}</td>
                             <td class="hidden whitespace-nowrap text-right sm:table-cell">{{ $s->garantia_dias !== null ? $s->garantia_dias.' dias' : '—' }}</td>
@@ -39,7 +45,23 @@
                 <h2 class="mb-4">{{ $editando ? 'Editar serviço' : 'Novo serviço' }}</h2>
                 <form method="post" action="{{ $editando ? route('servicos.update', $editando) : route('servicos.store') }}" class="space-y-4">
                     @csrf @if ($editando) @method('put') @endif
-                    <x-campo nome="nome" rotulo="Nome" :valor="$editando?->nome" required maxlength="120" placeholder="Ex.: Alinhamento e balanceamento" />
+                    <x-campo nome="nome" rotulo="Nome" :valor="$editando?->nome" list="nomes-servicos" required maxlength="120" placeholder="Ex.: Alinhamento e balanceamento" />
+                    <datalist id="nomes-servicos">
+                        @foreach (['Troca de óleo', 'Troca de filtro', 'Inspeção preventiva', 'Alinhamento', 'Balanceamento', 'Diagnóstico eletrônico', 'Troca de pastilhas', 'Higienização do ar-condicionado'] as $nome)
+                            <option value="{{ $nome }}">
+                        @endforeach
+                    </datalist>
+                    <label class="campo"><span>Categoria</span>
+                        <select name="categoria_servico_id" class="input">
+                            <option value="">Sem categoria</option>
+                            @foreach ($categorias as $categoria)
+                                @if ($categoria->ativo || $editando?->categoria_servico_id === $categoria->id)
+                                    <option value="{{ $categoria->id }}" @selected((string) old('categoria_servico_id', $editando?->categoria_servico_id) === (string) $categoria->id)>{{ $categoria->nome }}</option>
+                                @endif
+                            @endforeach
+                        </select>
+                    </label>
+                    @error('categoria_servico_id')<p class="erro-msg">{{ $message }}</p>@enderror
                     <div class="grid grid-cols-2 gap-3">
                         <x-campo nome="preco" rotulo="Preço (R$)" :valor="$editando ? Dinheiro::campo($editando->preco_centavos) : ''" mascara="dinheiro" inputmode="decimal" required />
                         <x-campo nome="tempo_minutos" rotulo="Tempo (min)" tipo="number" min="1" :valor="$editando?->tempo_minutos" />

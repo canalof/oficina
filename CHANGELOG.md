@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.3.0 — código do servidor de 09/11/2026
+
+Traz para o repositório o que foi feito direto no servidor (torque.softmaxbr.com.br) depois da 1.2.0, para o deploy automático partir da versão que está no ar. Sem novos testes para os módulos novos.
+
+### Novos módulos
+- Bancos: contas bancárias, importação de extrato OFX e sugestões de conciliação.
+- Pix: cobrança Pix (estática e manual) com webhook idempotente.
+- CNH: conferência e consulta de CNH (Senatran com chave própria da oficina), com prazo de retenção por oficina.
+- Mobilidade: frota, condutores, reservas, retiradas, fotos e documentos.
+- OS: inspeção de entrada, laudo com medições, garantias, conversa com o cliente, pedido de peça, terceirizados e troca de óleo; modelos de OS e catálogo de serviços por categoria.
+- Veículos: inspeção de pneus, serviços de autocenter e histórico de manutenção; extrato de frota no cliente.
+- Aplicativo instalável (PWA), leitor de código de barras e leitura de placa pela câmera; tutorial e página de ajuda.
+
+### Mudanças de comportamento
+- Cadastro pelo site fica **pendente** até o admin liberar em /plataforma; o teste grátis passou para **7 dias** e começa na liberação.
+- Mudar a **descrição** de item aprovado também volta para aprovação; remover item aprovado exige gerente ou dono.
+- Lembrete aberto no WhatsApp manual só conta como enviado depois de "Confirmar envio".
+- Entrega bloqueada por estoque desfaz também o recebimento; estoque negativo só com a opção ligada na oficina.
+- `PertenceAEmpresa` bloqueia alterar, excluir e restaurar registro de outra empresa, e não aceita `empresa_id` diferente da empresa atual.
+
+### Testes
+- 4 testes ajustados ao comportamento novo; 104 testes aprovados.
+
+
 ## 1.2.0 — 06/11/2026
 
 Fase 2 do escopo "Torque 2.0" (cadastros, estoque e OS). Situação item a item em `docs/auditoria.md`.

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Empresa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -26,6 +27,9 @@ class AuthController extends Controller
             return back()->withErrors(['email' => 'E-mail ou senha incorretos.'])->onlyInput('email');
         }
         $user = \App\Models\User::where('email', $credenciais['email'])->first();
+        if ($user->empresa?->assinatura_status === Empresa::CADASTRO_PENDENTE) {
+            return back()->withErrors(['email' => 'O cadastro da oficina está aguardando liberação.'])->onlyInput('email');
+        }
 
         // Verificação em duas etapas: guarda quem é e pede o código do aplicativo
         if ($user->doisFatoresAtivo()) {

@@ -130,7 +130,9 @@ class PlataformaSegurancaTest extends TestCase
         $this->assertSame(1.0, (float) $this->em($u, fn () => $p->fresh()->estoque));
 
         $this->em($u, fn () => $p->movimentar(5, 'entrada', 'manual'));
-        $this->post("/os/{$os->id}/acao/entregar")->assertSessionHas('ok');
+        // o recebimento anterior foi desfeito junto com a entrega bloqueada: receber de novo
+        $this->post("/os/{$os->id}/receber", ['pagamentos' => [['forma' => 'pix', 'valor' => '60,00']], 'entregar' => 1])
+            ->assertSessionHas('ok');
         $this->assertSame(4.0, (float) $this->em($u, fn () => $p->fresh()->estoque));
         $this->assertSame(0.0, $this->em($u, fn () => $p->reservado()));
 
@@ -247,14 +249,22 @@ class PlataformaSegurancaTest extends TestCase
         $this->post('/cadastro', [
             'oficina' => 'Auto Mecânica Silva', 'nome' => 'José Silva', 'telefone' => '(19) 99999-0000', 'email' => 'jose@silva.com.br',
             'password' => 'senha12345', 'password_confirmation' => 'senha12345', 'plano' => 'essencial', 'aceite' => 1,
-        ])->assertRedirect('/');
+        ])->assertRedirect('/entrar');
         $u = User::where('email', 'jose@silva.com.br')->first();
         $e = $u->empresa;
+
+        // cadastro fica aguardando liberação do admin da plataforma
+        $this->assertSame([Empresa::CADASTRO_PENDENTE, false], [$e->assinatura_status, (bool) $e->ativo]);
+        $admin = $this->novaEmpresa('Torque (plataforma)');
+        $admin->forceFill(['admin_plataforma' => true, 'dois_fatores_segredo' => Totp::novoSegredo(), 'dois_fatores_ativo_em' => now()])->save();
+        $this->actingAs($admin)->post('/plataforma/empresas/'.$e->id.'/liberar')->assertSessionHas('ok');
+        $this->actingAs($u);
+        $e->refresh();
         $this->assertSame(['trial', 'essencial', Perfil::Dono], [$e->assinatura_status, $e->plano->slug, $u->perfil]);
-        $this->assertSame(14, $e->diasDeTeste());
+        $this->assertSame(Empresa::DIAS_TRIAL, $e->diasDeTeste());
         $this->get('/os')->assertOk();
 
-        $this->travel(15)->days();
+        $this->travel(Empresa::DIAS_TRIAL + 1)->days();
         $this->get('/os')->assertRedirect('/assinatura');
         $this->get('/assinatura')->assertOk()->assertSee('O teste grátis terminou');
         $this->artisan('torque:assinaturas')->assertSuccessful();

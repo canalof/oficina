@@ -33,7 +33,8 @@
                             </h2>
                             <div class="mt-1 space-y-2">
                                 @foreach ($lista as $os)
-                                    <a href="{{ route('os.show', $os) }}" class="block rounded-md border border-linha bg-white p-3 hover:border-asfalto-3">
+                                    <div class="rounded-md border border-linha bg-white p-3 hover:border-asfalto-3">
+                                    <a href="{{ route('os.show', $os) }}" class="block">
                                         <div class="flex items-center justify-between gap-2">
                                             <x-placa :placa="$os->veiculo->placa" />
                                             <span class="text-sm text-suave">#{{ $os->numero }}</span>
@@ -50,6 +51,13 @@
                                         </div>
                                         @if ($os->mecanico)<div class="mt-1 truncate text-xs text-suave">{{ $os->mecanico->name }}</div>@endif
                                     </a>
+                                    @if ($os->mensagens_novas)
+                                        <a href="{{ route('os.show', $os) }}#conversa-interna" class="rotulo mt-2 border-sinal">{{ $os->mensagens_novas }} nova(s)</a>
+                                    @endif
+                                    @can('os.editar')
+                                        <a href="{{ route('os.edit', $os) }}" class="btn btn-sm mt-2" aria-label="Editar OS {{ $os->numeroFormatado() }}">Editar OS</a>
+                                    @endcan
+                                    </div>
                                 @endforeach
                             </div>
                         </section>
@@ -79,7 +87,17 @@
                 <tbody>
                 @forelse ($ordens as $os)
                     <tr>
-                        <td><a class="font-semibold hover:underline" href="{{ route('os.show', $os) }}">{{ $os->numeroFormatado() }}</a></td>
+                        <td>
+                            <a class="font-semibold hover:underline" href="{{ route('os.show', $os) }}">{{ $os->numeroFormatado() }}</a>
+                            @if ($os->mensagens_novas)
+                                <div class="mt-2"><a href="{{ route('os.show', $os) }}#conversa-interna" class="rotulo border-sinal">{{ $os->mensagens_novas }} nova(s)</a></div>
+                            @endif
+                            @if ($os->status->noPatio())
+                                @can('os.editar')
+                                    <div class="mt-2"><a href="{{ route('os.edit', $os) }}" class="btn btn-sm" aria-label="Editar OS {{ $os->numeroFormatado() }}">Editar OS</a></div>
+                                @endcan
+                            @endif
+                        </td>
                         <td><x-placa :placa="$os->veiculo->placa" /></td>
                         <td class="hidden md:table-cell">{{ $os->veiculo->descricao() }}</td>
                         <td>{{ $os->cliente?->nome ?? '—' }}</td>

@@ -35,7 +35,7 @@
             <div class="grid gap-4 md:grid-cols-6">
                 <x-campo nome="inscricao_estadual" rotulo="Inscrição estadual" :valor="$empresa->inscricao_estadual" class="md:col-span-2" />
                 <x-campo nome="inscricao_municipal" rotulo="Inscrição municipal" :valor="$empresa->inscricao_municipal" class="md:col-span-2" />
-                <x-campo nome="codigo_municipio" rotulo="Código do município (IBGE)" :valor="$empresa->codigo_municipio" inputmode="numeric" maxlength="7" ajuda="7 dígitos. Sumaré/SP = 3552403" class="md:col-span-2" />
+                <x-campo nome="codigo_municipio" rotulo="Código do município (IBGE)" :valor="$empresa->codigo_municipio" inputmode="numeric" maxlength="7" ajuda="7 dígitos. Hortolândia/SP = 3519071" class="md:col-span-2" />
                 <label class="campo md:col-span-2"><span>Regime tributário</span>
                     <select name="regime_tributario" class="input">
                         @foreach ([1 => 'Simples Nacional', 2 => 'Simples (excesso de sublimite)', 3 => 'Regime normal'] as $v => $r)
@@ -60,6 +60,7 @@
                     <label class="flex items-center gap-2 text-[15px] md:col-span-6"><input type="checkbox" name="remover_token" value="1" class="h-4 w-4 accent-asfalto"> Remover token (volta para demonstração)</label>
                 @endif
             </div>
+            <a href="{{ route('tutorial') }}#notas-fiscais" class="btn btn-sm mt-4">Ver tutorial de notas fiscais</a>
         </section>
 
         <section class="card card-corpo">

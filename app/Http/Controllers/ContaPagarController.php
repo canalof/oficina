@@ -10,6 +10,7 @@ use App\Support\Tenant;
 use Carbon\Carbon;
 use DomainException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ContaPagarController extends Controller
@@ -39,7 +40,7 @@ class ContaPagarController extends Controller
         $this->authorize('financeiro.editar');
         $request->merge(['valor_centavos' => Dinheiro::paraCentavos($request->input('valor'))]);
         $dados = $request->validate([
-            'fornecedor_id' => ['nullable', Rule::exists('fornecedores', 'id')->where('empresa_id', Tenant::id())],
+            'fornecedor_id' => ['nullable', Rule::exists('fornecedores', 'id')->where('empresa_id', Tenant::id())->whereNull('deleted_at')],
             'categoria' => ['required', Rule::in(ContaPagar::CATEGORIAS)],
             'descricao' => ['required', 'string', 'max:200'],
             'documento' => ['nullable', 'string', 'max:40'],
@@ -51,12 +52,15 @@ class ContaPagarController extends Controller
         $vezes = (int) ($dados['repetir'] ?? 1);
         unset($dados['repetir']);
         $venc = Carbon::parse($dados['vencimento']);
-        for ($i = 0; $i < $vezes; $i++) {
-            ContaPagar::create(array_merge($dados, [
-                'vencimento' => $venc->copy()->addMonthsNoOverflow($i),
-                'descricao' => $dados['descricao'].($vezes > 1 ? ' ('.($i + 1).'/'.$vezes.')' : ''),
-            ]));
-        }
+        // Todas as parcelas precisam ser gravadas juntas: sem lançamento parcial.
+        DB::transaction(function () use ($vezes, $dados, $venc) {
+            for ($i = 0; $i < $vezes; $i++) {
+                ContaPagar::create(array_merge($dados, [
+                    'vencimento' => $venc->copy()->addMonthsNoOverflow($i),
+                    'descricao' => $dados['descricao'].($vezes > 1 ? ' ('.($i + 1).'/'.$vezes.')' : ''),
+                ]));
+            }
+        }, 3);
 
         return back()->with('ok', $vezes > 1 ? "{$vezes} contas lançadas." : 'Conta lançada.');
     }
@@ -78,8 +82,17 @@ class ContaPagarController extends Controller
     public function cancelar(ContaPagar $conta)
     {
         $this->authorize('financeiro.editar');
-        abort_unless($conta->status === 'aberta', 422);
-        $conta->update(['status' => 'cancelada']);
+        // O model recebido por route binding pode ter ficado desatualizado
+        // enquanto outra requisição quitava este mesmo título.
+        $cancelada = DB::transaction(function () use ($conta) {
+            $atual = ContaPagar::query()->whereKey($conta->getKey())->lockForUpdate()->firstOrFail();
+            if ($atual->status !== 'aberta') {
+                return false;
+            }
+            $atual->update(['status' => 'cancelada']);
+            return true;
+        }, 3);
+        abort_unless($cancelada, 422, 'Somente contas em aberto podem ser canceladas.');
 
         return back()->with('ok', 'Conta cancelada.');
     }

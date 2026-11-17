@@ -17,7 +17,7 @@
 
     <div class="card overflow-x-auto">
         <table class="tabela">
-            <thead><tr><th>Nome</th><th class="hidden md:table-cell">CPF/CNPJ</th><th>Telefone</th><th class="hidden sm:table-cell">Cidade</th><th class="text-right">Carros</th></tr></thead>
+            <thead><tr><th>Nome</th><th class="hidden md:table-cell">CPF/CNPJ</th><th>Telefone</th><th class="hidden sm:table-cell">Cidade</th><th class="text-right">Carros</th>@can('clientes.editar')<th>Ações</th>@endcan</tr></thead>
             <tbody>
             @forelse ($clientes as $c)
                 <tr>
@@ -26,9 +26,12 @@
                     <td class="whitespace-nowrap">{{ $c->whatsapp ?: $c->telefone }}</td>
                     <td class="hidden sm:table-cell">{{ $c->cidade }}</td>
                     <td class="text-right">{{ $c->veiculos_count }}</td>
+                    @can('clientes.editar')
+                        <td><a href="{{ route('clientes.edit', $c) }}" class="btn btn-sm" aria-label="Editar cliente {{ $c->nome }}">Editar</a></td>
+                    @endcan
                 </tr>
             @empty
-                <tr><td colspan="5" class="py-10 text-center text-suave">
+                <tr><td colspan="{{ auth()->user()->can('clientes.editar') ? 6 : 5 }}" class="py-10 text-center text-suave">
                     @if ($busca) Nenhum cliente encontrado para “{{ $busca }}”. @else Nenhum cliente cadastrado ainda. @endif
                 </td></tr>
             @endforelse

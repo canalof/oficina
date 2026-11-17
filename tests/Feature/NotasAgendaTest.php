@@ -199,6 +199,9 @@ class NotasAgendaTest extends TestCase
         $r = $this->actingAs($u)->post("/lembretes/{$l->id}/enviar");
         $this->assertStringStartsWith('https://wa.me/5519999991111?text=', $r->headers->get('Location'));
         $this->assertStringContainsString(rawurlencode('Troca de óleo'), $r->headers->get('Location'));
+        // abrir o WhatsApp não prova o envio: fica pendente até a pessoa confirmar
+        $this->assertSame('pendente', $this->em($u, fn () => $l->fresh()->status));
+        $this->post("/lembretes/{$l->id}/confirmar-manual");
         $this->assertSame('enviado', $this->em($u, fn () => $l->fresh()->status));
     }
 

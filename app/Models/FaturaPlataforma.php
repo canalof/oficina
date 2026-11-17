@@ -17,4 +17,9 @@ class FaturaPlataforma extends Model
     {
         return ['vencimento' => 'date', 'paga_em' => 'datetime', 'valor_centavos' => 'integer'];
     }
+
+    public function manual(): bool
+    {
+        return str_starts_with($this->externo_id, 'manual-');
+    }
 }

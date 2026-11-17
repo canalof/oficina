@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\OrdemServico;
+use App\Models\ModeloOs;
 use App\Models\Servico;
 use App\Models\User;
 use App\Models\Veiculo;
@@ -13,6 +14,7 @@ use App\Support\StatusOs;
 use App\Support\Tenant;
 use DomainException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class OrdemServicoController extends Controller
@@ -21,9 +23,15 @@ class OrdemServicoController extends Controller
     {
         $this->authorize('os.ver');
         $visao = $request->query('visao') === 'todas' ? 'todas' : 'patio';
+        $usuarioId = $request->user()->id;
+        $ordens = OrdemServico::with(['veiculo', 'cliente'])->withCount([
+            'mensagens as mensagens_novas' => fn ($q) => $q
+                ->where(fn ($autores) => $autores->where('user_id', '<>', $usuarioId)->orWhereNull('user_id'))
+                ->whereRaw('os_mensagens.id > COALESCE((SELECT ultima_mensagem_id FROM os_conversa_leituras WHERE ordem_servico_id = os_mensagens.ordem_servico_id AND user_id = ?), 0)', [$usuarioId]),
+        ]);
 
         if ($visao === 'patio') {
-            $abertas = OrdemServico::with(['veiculo', 'cliente', 'mecanico'])
+            $abertas = $ordens->with('mecanico')
                 ->whereIn('status', array_map(fn ($s) => $s->value, StatusOs::doPatio()))
                 ->orderBy('numero')->get()
                 ->groupBy(fn ($os) => $os->status->value);
@@ -38,7 +46,7 @@ class OrdemServicoController extends Controller
             'visao' => $visao,
             'busca' => $busca,
             'status' => $status,
-            'ordens' => OrdemServico::with(['veiculo', 'cliente'])
+            'ordens' => $ordens
                 ->busca($busca)
                 ->when($status, fn ($q) => $q->where('status', $status->value))
                 ->orderByDesc('numero')->paginate(25)->withQueryString(),
@@ -70,7 +78,11 @@ class OrdemServicoController extends Controller
     {
         $this->authorize('os.editar');
         $dados = $this->validar($request, true);
-        $os = OrdemServico::abrir($dados);
+        try {
+            $os = OrdemServico::abrir($dados);
+        } catch (DomainException $e) {
+            return back()->withErrors(['cliente_id' => $e->getMessage()])->withInput();
+        }
 
         return redirect()->route('os.show', $os)->with('ok', 'OS '.$os->numeroFormatado().' aberta. Agora adicione os serviços e peças do orçamento.');
     }
@@ -78,15 +90,35 @@ class OrdemServicoController extends Controller
     public function show(OrdemServico $os)
     {
         $this->authorize('os.ver');
-        $os->load(['veiculo', 'cliente', 'consultor', 'mecanico', 'itens.mecanico', 'itens.produto', 'fotos', 'eventos.user', 'contasReceber', 'notas', 'aceites.user']);
+        $os->load(['veiculo', 'cliente', 'consultor', 'mecanico', 'itens.mecanico', 'itens.produto', 'fotos', 'inspecoes', 'garantias', 'laudo', 'comprasPendentes', 'terceirizados', 'trocaOleo', 'eventos.user', 'contasReceber', 'notas', 'aceites.user']);
+        $mensagens = $os->mensagens()->with('autor:id,name')->latest('id')->limit(100)->get();
+        if ($ultima = $mensagens->first()) {
+            $leitura = ['ordem_servico_id' => $os->id, 'user_id' => auth()->id()];
+            DB::table('os_conversa_leituras')->insertOrIgnore($leitura + ['ultima_mensagem_id' => $ultima->id]);
+            DB::table('os_conversa_leituras')->where($leitura)->where('ultima_mensagem_id', '<', $ultima->id)
+                ->update(['ultima_mensagem_id' => $ultima->id]);
+        }
 
         return view('os.show', [
             'os' => $os,
+            'consultasCnh' => auth()->user()->can('mobilidade.ver')
+                ? \App\Models\CnhConsulta::where('ordem_servico_id', $os->id)->latest('id')->limit(10)->get()
+                : collect(),
+            'comprasPorProduto' => auth()->user()->can('compras.lancar')
+                ? \App\Models\CompraItem::with('compra')->whereIn('produto_id', $os->itens->where('situacao', 'aprovado')->pluck('produto_id')->filter())
+                    ->whereHas('compra', fn ($q) => $q->where('status', 'lancada'))->latest('id')->limit(150)->get()->groupBy('produto_id')
+                : collect(),
+            'oleoAnterior' => $os->veiculo->ordens()->whereKeyNot($os->id)->where('status', StatusOs::Entregue)
+                ->whereHas('trocaOleo')->with('trocaOleo')->first()?->trocaOleo,
+            'mensagens' => $mensagens->reverse(),
             'produtos' => \App\Models\Produto::where('ativo', true)->orderBy('nome')->get(['id', 'nome', 'codigo', 'preco_centavos', 'estoque', 'unidade']),
             'caixaAberto' => \App\Models\Caixa::aberto() !== null,
-            'servicos' => Servico::where('ativo', true)->orderBy('nome')->get(),
+            'servicos' => Servico::with('categoria')->where('ativo', true)->orderBy('nome')->get(),
+            'modelosOs' => $os->status->aceitaItens() && auth()->user()->can('os.editar')
+                ? ModeloOs::where('ativo', true)->orderBy('nome')->get(['id', 'nome'])
+                : collect(),
             'mecanicos' => $this->mecanicos(),
-            'outras' => $os->veiculo->ordens()->where('id', '<>', $os->id)->with('itens')->limit(10)->get(),
+            'outras' => $os->veiculo->ordens()->where('id', '<>', $os->id)->with(['itens', 'inspecoes'])->limit(10)->get(),
         ]);
     }
 
@@ -94,7 +126,7 @@ class OrdemServicoController extends Controller
     {
         $this->authorize('os.editar');
         abort_unless($os->status->noPatio(), 403, 'OS encerrada não pode ser alterada.');
-        $os->load('veiculo.cliente');
+        $os->load(['veiculo.cliente', 'cliente']);
 
         return view('os.form', ['os' => $os, 'veiculo' => $os->veiculo, 'aberta' => null, 'mecanicos' => $this->mecanicos(), 'clientes' => $this->clientes()]);
     }
@@ -102,12 +134,21 @@ class OrdemServicoController extends Controller
     public function update(Request $request, OrdemServico $os)
     {
         $this->authorize('os.editar');
-        abort_unless($os->status->noPatio(), 403, 'OS encerrada não pode ser alterada.');
-        $os->update($this->validar($request, false));
-        if ($os->km_entrada && $os->km_entrada > (int) $os->veiculo->km_atual) {
-            $os->veiculo->update(['km_atual' => $os->km_entrada]);
-        }
-        $os->recalcular();
+        $dados = $this->validar($request, false);
+        // O status verificado no route binding pode estar desatualizado.
+        // Edição, mudança de etapa e aprovação devem serializar na mesma OS.
+        DB::transaction(function () use ($os, $dados) {
+            $atual = OrdemServico::whereKey($os->getKey())->lockForUpdate()->firstOrFail();
+            abort_unless($atual->status->noPatio(), 403, 'OS encerrada não pode ser alterada.');
+            $atual->update($dados);
+            if ($atual->km_entrada !== null) {
+                $veiculo = Veiculo::whereKey($atual->veiculo_id)->lockForUpdate()->first();
+                if ($veiculo && $atual->km_entrada > (int) $veiculo->km_atual) {
+                    $veiculo->update(['km_atual' => $atual->km_entrada]);
+                }
+            }
+            $atual->recalcular();
+        }, 3);
 
         return redirect()->route('os.show', $os)->with('ok', 'OS atualizada.');
     }
@@ -116,12 +157,15 @@ class OrdemServicoController extends Controller
     public function diagnostico(Request $request, OrdemServico $os)
     {
         $this->authorize('os.executar');
-        abort_unless($os->status->noPatio(), 403);
         $dados = $request->validate([
             'diagnostico' => ['nullable', 'string', 'max:5000'],
             'mecanico_id' => ['nullable', Rule::exists('users', 'id')->where('empresa_id', Tenant::id())],
         ], [], ['mecanico_id' => 'mecânico']);
-        $os->update($dados);
+        DB::transaction(function () use ($os, $dados) {
+            $atual = OrdemServico::whereKey($os->getKey())->lockForUpdate()->firstOrFail();
+            abort_unless($atual->status->noPatio(), 403, 'OS encerrada não pode ser alterada.');
+            $atual->update($dados);
+        }, 3);
 
         return back()->with('ok', 'Diagnóstico salvo.');
     }
@@ -129,11 +173,24 @@ class OrdemServicoController extends Controller
     public function desconto(Request $request, OrdemServico $os)
     {
         $this->authorize('os.editar');
-        abort_unless($os->status->aceitaItens() || $os->status === StatusOs::Pronta, 403);
-        $os->desconto_centavos = max(0, Dinheiro::paraCentavos($request->input('desconto')));
-        $os->recalcular();
-        $os->alterouOrcamento();
-        $os->registrar('Desconto: '.Dinheiro::formatar($os->desconto_centavos));
+        $novoDesconto = max(0, Dinheiro::paraCentavos($request->input('desconto')));
+        try {
+            // Mesmo bloqueio usado no recebimento: uma alteração de desconto
+            // concorrente não pode mudar o total de uma OS já quitada/faturada.
+            DB::transaction(function () use ($os, $novoDesconto) {
+                $atual = OrdemServico::whereKey($os->id)->lockForUpdate()->firstOrFail();
+                abort_unless($atual->status->aceitaItens() || $atual->status === StatusOs::Pronta, 403);
+                if ($atual->recebido_em !== null || $atual->contasReceber()->exists()) {
+                    throw new DomainException('Não é possível alterar o desconto após registrar cobrança ou recebimento da OS.');
+                }
+                $atual->desconto_centavos = $novoDesconto;
+                $atual->recalcular();
+                $atual->alterouOrcamento();
+                $atual->registrar('Desconto: '.Dinheiro::formatar($atual->desconto_centavos));
+            }, 3);
+        } catch (DomainException $e) {
+            return back()->with('erro', $e->getMessage());
+        }
 
         return back()->with('ok', 'Desconto aplicado.');
     }
@@ -269,9 +326,35 @@ class OrdemServicoController extends Controller
             'km_entrada' => 'km de entrada', 'defeito_relatado' => 'defeito relatado',
             'previsao_entrega' => 'previsão de entrega', 'garantia_dias' => 'garantia', 'mecanico_id' => 'mecânico',
         ]);
-        $dados['checklist'] = Checklist::limpar($request->input('checklist'));
-        $dados['garantia_dias'] ??= 90;
+        // Em uma OS NOVA, o cliente precisa coincidir com o proprietário do veículo.
+        // A abertura revalida isso sob bloqueio, caso ocorra transferência simultânea.
+        // Em uma OS EXISTENTE, o cliente é um vínculo histórico e financeiro:
+        // editar observações/garantia não pode transferir dívidas ou aceites para
+        // o proprietário atual do veículo depois de uma venda.
         if ($nova) {
+            $veiculo = Veiculo::findOrFail($dados['veiculo_id']);
+            if (array_key_exists('cliente_id', $dados) && $dados['cliente_id'] !== null
+                && (int) $dados['cliente_id'] !== (int) $veiculo->cliente_id) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'cliente_id' => 'O cliente selecionado não é o proprietário atual do veículo.',
+                ]);
+            }
+            $dados['cliente_id'] = $veiculo->cliente_id;
+        } else {
+            $osOriginal = $request->route('os');
+            if (array_key_exists('cliente_id', $dados)
+                && (int) $dados['cliente_id'] !== (int) $osOriginal->cliente_id) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'cliente_id' => 'O cliente desta OS é histórico e não pode ser trocado nesta edição.',
+                ]);
+            }
+            unset($dados['cliente_id']);
+        }
+        $dados['checklist'] = Checklist::limpar($request->input('checklist'));
+        if ($nova) {
+            // O padrão é somente para uma OS nova: em uma edição parcial,
+            // ausência do campo não deve sobrescrever a garantia existente.
+            $dados['garantia_dias'] ??= 90;
             $dados['consultor_id'] = auth()->id();
         }
 

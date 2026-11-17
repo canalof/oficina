@@ -6,6 +6,7 @@
     <meta name="robots" content="noindex,nofollow">
     <title>Entrar · Torque</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    @include('partials.pwa')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-asfalto">
@@ -35,8 +36,8 @@
         <form method="post" action="{{ route('login.entrar') }}" class="w-full max-w-sm">
             @csrf
             <div class="mb-8 flex items-center gap-3">
-                <svg width="38" height="38" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#f2a900"/><path d="M8 11h16M16 11v13" stroke="#1f2a33" stroke-width="4" stroke-linecap="round"/></svg>
-                <span class="text-2xl font-bold tracking-tight">Torque</span>
+                <img src="/favicon.svg" width="38" height="38" class="rounded-md" alt="">
+                <span class="text-2xl font-bold tracking-tight">TORQUE</span>
             </div>
             @if (session('ok'))<div class="mb-4 rounded-md border border-[#b7dcc6] bg-[#eef8f2] px-3 py-2 text-[15px] text-[#185c35]" role="status">{{ session('ok') }}</div>@endif
             <h1 class="mb-1">Entrar</h1>
@@ -53,7 +54,8 @@
             <button class="btn-primario w-full py-3">Entrar</button>
             <div class="mt-5 flex flex-wrap justify-between gap-3 text-[15px]">
                 <a href="{{ route('password.request') }}" class="font-semibold text-asfalto-3 hover:underline">Esqueci a senha</a>
-                <a href="{{ route('cadastro') }}" class="font-semibold text-asfalto-3 hover:underline">Teste grátis por 14 dias</a>
+                <a href="{{ route('cadastro') }}" class="font-semibold text-asfalto-3 hover:underline">Cadastrar minha oficina</a>
+                <a href="{{ route('instalar') }}" class="font-semibold text-asfalto-3 hover:underline">Instalar no celular</a>
             </div>
         </form>
     </section>

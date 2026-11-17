@@ -25,12 +25,6 @@ class DefinirEmpresa
             return redirect()->route('login')->withErrors(['email' => 'Acesso desativado. Fale com o responsável pela sua empresa.']);
         }
 
-        Tenant::usar($user?->empresa_id);
-
-        try {
-            return $next($request);
-        } finally {
-            Tenant::usar(null);
-        }
+        return Tenant::com($user?->empresa_id, fn () => $next($request));
     }
 }

@@ -13,12 +13,14 @@ class Empresa extends Model
         'regime_tributario', 'cfop_padrao', 'csosn_padrao', 'item_lista_servico', 'aliquota_iss', 'serie_nfce',
         'fiscal_ambiente', 'fiscal_token', 'whatsapp_instancia',
         'plano_id', 'assinatura_status', 'trial_ate', 'cobranca_cliente_id', 'cobranca_assinatura_id', 'proximo_vencimento', 'suspensa_em',
-        'estoque_negativo', 'agenda_capacidade', 'orcamento_validade_dias',
+        'estoque_negativo', 'agenda_capacidade', 'orcamento_validade_dias', 'cnh_retencao_dias',
     ];
 
     public const STATUS = ['trial' => 'Teste grátis', 'ativa' => 'Ativa', 'inadimplente' => 'Pagamento atrasado', 'suspensa' => 'Suspensa', 'cancelada' => 'Cancelada'];
 
-    public const DIAS_TRIAL = 14;
+    public const DIAS_TRIAL = 7;
+
+    public const CADASTRO_PENDENTE = 'pendente';
 
     protected $hidden = ['fiscal_token'];
 
@@ -26,7 +28,7 @@ class Empresa extends Model
     {
         return ['ativo' => 'boolean', 'fiscal_token' => 'encrypted', 'aliquota_iss' => 'decimal:2', 'regime_tributario' => 'integer', 'serie_nfce' => 'integer',
             'trial_ate' => 'date', 'proximo_vencimento' => 'date', 'suspensa_em' => 'datetime', 'estoque_negativo' => 'boolean',
-            'agenda_capacidade' => 'integer', 'orcamento_validade_dias' => 'integer'];
+            'agenda_capacidade' => 'integer', 'orcamento_validade_dias' => 'integer', 'cnh_retencao_dias' => 'integer'];
     }
 
     public function optanteSimples(): bool
@@ -42,7 +44,7 @@ class Empresa extends Model
     /** Sem acesso às telas de trabalho (só à assinatura). */
     public function bloqueada(): bool
     {
-        return in_array($this->assinatura_status, ['suspensa', 'cancelada'], true)
+        return in_array($this->assinatura_status, [self::CADASTRO_PENDENTE, 'suspensa', 'cancelada'], true)
             || ($this->assinatura_status === 'trial' && $this->trial_ate && $this->trial_ate->lt(today()));
     }
 

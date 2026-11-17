@@ -2,7 +2,7 @@
     <section class="card overflow-hidden">
         <div class="bg-asfalto px-6 py-8 text-white sm:px-10">
             <h1 class="text-white">Receber um carro</h1>
-            <p class="mt-1 text-[#a9b6c1]">Digite a placa. Se o carro já veio antes, a ficha abre na hora.</p>
+            <p class="mt-1 text-[#a9b6c1]">Se o veículo já passou pela oficina, busque pela placa. Para um cliente novo, você também pode começar pelo cadastro da pessoa.</p>
 
             <form data-recepcao action="{{ route('recepcao.buscar') }}" class="mt-6 flex flex-wrap items-end gap-4" autocomplete="off">
                 <label class="block">
@@ -15,8 +15,19 @@
                     </span>
                 </label>
                 <button class="btn-sinal px-6 py-3.5 text-base">Buscar placa</button>
+                <label class="btn cursor-pointer focus-within:ring-2 focus-within:ring-sinal">
+                    <input type="file" accept="image/*" capture="environment" class="sr-only" data-foto-placa aria-label="Fotografar placa">
+                    Fotografar placa
+                </label>
             </form>
+            <p class="mt-2 text-sm text-[#d6dde3]">Aproxime a câmera até a placa preencher a foto e confira a leitura antes de buscar.</p>
             <p id="status-placa" class="mt-3 min-h-6 text-[15px] text-[#d6dde3]" data-recepcao-status aria-live="polite"></p>
+            @can('clientes.editar')
+                <div class="mt-4 border-t border-asfalto-3 pt-4">
+                    <a href="{{ route('clientes.create') }}" class="btn">Cadastrar novo cliente</a>
+                    <p class="mt-2 text-sm text-[#d6dde3]">A placa é informada depois, no cadastro do veículo.</p>
+                </div>
+            @endcan
         </div>
     </section>
 

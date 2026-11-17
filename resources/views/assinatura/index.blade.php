@@ -3,7 +3,7 @@
     <h1 class="mb-1">Assinatura do Torque</h1>
     @if ($empresa->bloqueada())
         <div class="mb-5 mt-3 rounded-md border border-[#ecc3bf] bg-[#fcf0ef] px-4 py-3 text-[15px] text-[#8c241d]" role="alert">
-            {{ $empresa->assinatura_status === 'trial' ? 'O teste grátis terminou.' : 'O acesso está suspenso.' }} Escolha um plano para voltar a usar. Seus dados continuam guardados.
+            {{ $empresa->assinatura_status === 'trial' ? 'O teste grátis terminou.' : 'O acesso está suspenso.' }} {{ $cobrancaManual ? 'Consulte as faturas abaixo ou fale com o administrador do TORQUE.' : 'Escolha um plano para voltar a usar.' }} Seus dados continuam guardados.
         </div>
     @endif
     <div class="mb-6 mt-4 grid gap-4 sm:grid-cols-3">
@@ -14,6 +14,9 @@
     </div>
 
     <h2 class="mb-3">Planos</h2>
+    @if ($cobrancaManual)
+        <p class="mb-3 text-suave">Para contratar ou trocar de plano, solicite a cobrança ao administrador do TORQUE. Quando registrada, a fatura aparece nesta página.</p>
+    @endif
     <div class="mb-6 grid gap-4 md:grid-cols-3">
         @foreach ($planos as $p)
             @php $atual = $empresa->plano_id === $p->id && in_array($empresa->assinatura_status, ['ativa', 'inadimplente'], true); @endphp
@@ -30,7 +33,7 @@
                 @if ($pode)
                     @if ($atual)
                         <p class="mt-4 text-[15px] font-semibold text-ok">Seu plano</p>
-                    @else
+                    @elseif (! $cobrancaManual)
                         <form method="post" action="{{ route('assinatura.assinar') }}" class="mt-4" data-confirmar="Assinar o plano {{ $p->nome }} por {{ $p->precoFormatado() }} por mês?">
                             @csrf <input type="hidden" name="plano" value="{{ $p->slug }}">
                             <button class="btn-primario w-full">{{ $empresa->cobranca_assinatura_id ? 'Mudar para '.$p->nome : 'Assinar '.$p->nome }}</button>

@@ -28,7 +28,7 @@ class Tenant
     }
 
     /** Executa um bloco com outra empresa e restaura a anterior. */
-    public static function com(int $empresaId, callable $fn): mixed
+    public static function com(?int $empresaId, callable $fn): mixed
     {
         $anterior = self::$empresaId;
         self::$empresaId = $empresaId;

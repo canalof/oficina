@@ -1,10 +1,16 @@
 <x-app :titulo="$cliente->nome">
+    @can('mobilidade.ver')
+        <a href="{{ route('mobilidade.index', ['cliente' => $cliente->id]) }}" class="btn btn-sm mb-3">Mobilidade do cliente</a>
+    @endcan
     <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
             <h1>{{ $cliente->nome }}</h1>
             <p class="text-suave">{{ $cliente->tipo_pessoa === 'PJ' ? 'Pessoa jurídica' : 'Pessoa física' }}{{ $cliente->cpf_cnpj ? ' · '.$cliente->documentoFormatado() : '' }}</p>
         </div>
         <div class="flex flex-wrap gap-2">
+            @can('financeiro.ver')
+                @if ($cliente->tipo_pessoa === 'PJ')<a class="btn" href="{{ route('clientes.extrato-frota', $cliente) }}">Extrato mensal da frota</a>@endif
+            @endcan
             @if ($cliente->aceita_whatsapp && ($link = $cliente->linkWhatsapp()))
                 <a href="{{ $link }}" target="_blank" rel="noopener" class="btn">WhatsApp</a>
             @endif
@@ -42,7 +48,7 @@
     </div>
 
     @can('clientes.editar')
-        <section class="card card-corpo mt-6">
+        <section id="portal-cliente" class="card card-corpo mt-6 scroll-mt-16">
             <h2 class="mb-1">Portal do cliente</h2>
             <p class="mb-3 text-sm text-suave">Link pessoal, sem senha, com os carros, serviços, garantias e próximas revisões. Só envie para o próprio cliente.</p>
             @if ($cliente->portal_token)

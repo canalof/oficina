@@ -44,7 +44,7 @@
                             @endif
                         </td>
                         @if ($pode)
-                            <td class="text-right"><input name="preco[{{ $i->id }}]" class="input w-28 py-1.5 text-right text-sm" data-mascara="dinheiro" inputmode="decimal" placeholder="{{ Dinheiro::campo($i->produto?->preco_centavos ?: (int) round($i->custo_unitario_centavos * 1.6)) }}" aria-label="Preço de venda"></td>
+                            <td class="text-right"><input name="preco[{{ $i->id }}]" class="input w-28 py-1.5 text-right text-sm" data-mascara="dinheiro" inputmode="decimal" placeholder="{{ Dinheiro::campo($i->produto?->preco_centavos ?? (int) round($i->custo_unitario_centavos * 1.6)) }}" aria-label="Preço de venda"></td>
                         @endif
                     </tr>
                 @endforeach

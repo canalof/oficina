@@ -9,6 +9,7 @@ use App\Support\Dinheiro;
 use DomainException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 class CompraController extends Controller
@@ -62,13 +63,25 @@ class CompraController extends Controller
     public function destroy(Compra $compra)
     {
         $this->authorize('compras.lancar');
-        if ($compra->lancada()) {
-            return back()->with('erro', 'Nota já lançada não pode ser excluída.');
+        try {
+            // Lançar e excluir devem bloquear a MESMA linha da compra.
+            // Arquivo físico só é removido após o commit: falha de banco
+            // não pode deixar um rascunho existente sem seu XML.
+            $caminho = DB::transaction(function () use ($compra) {
+                $atual = Compra::whereKey($compra->getKey())->lockForUpdate()->firstOrFail();
+                if ($atual->lancada() || $atual->status !== 'rascunho') {
+                    throw new DomainException('Nota já lançada não pode ser excluída.');
+                }
+                $caminho = $atual->xml_caminho;
+                $atual->delete();
+                return $caminho;
+            }, 3);
+        } catch (DomainException $e) {
+            return back()->with('erro', $e->getMessage());
         }
-        if ($compra->xml_caminho) {
-            Storage::disk('local')->delete($compra->xml_caminho);
+        if ($caminho) {
+            Storage::disk('local')->delete($caminho);
         }
-        $compra->delete();
 
         return redirect()->route('compras.index')->with('ok', 'Importação descartada.');
     }

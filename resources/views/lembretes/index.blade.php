@@ -1,7 +1,7 @@
 <x-app titulo="Lembretes de revisão">
     <h1 class="mb-1">Lembretes de revisão</h1>
     <p class="mb-5 text-suave">Criados sozinhos na entrega do carro, para os serviços do catálogo que têm prazo de revisão (ex.: troca de óleo a cada 6 meses).
-        {{ $automatico ? 'O WhatsApp automático envia os próximos 7 dias todo dia às 9h.' : 'Clique em "Enviar" para abrir o WhatsApp com a mensagem pronta.' }}</p>
+        {{ $automatico ? 'O WhatsApp automático envia os próximos 7 dias todo dia às 9h.' : 'Abra o WhatsApp com a mensagem pronta e confirme o envio depois de enviá-la.' }}</p>
     @include('financeiro._abas', ['abas' => ['proximos' => 'Próximos 30 dias', 'todos' => 'Todos', 'enviados' => 'Enviados'], 'filtro' => $ver])
     <div class="card overflow-x-auto">
         <table class="tabela">
@@ -18,7 +18,14 @@
                             <div class="flex flex-wrap justify-end gap-1">
                                 <a href="{{ route('agenda.index', ['lembrete' => $l->id]) }}#form-agenda" class="btn btn-sm">Agendar</a>
                                 @if ($l->status === 'pendente')
-                                    <form method="post" action="{{ route('lembretes.enviar', $l) }}" @unless($automatico) target="_blank" @endunless>@csrf<button class="btn-primario btn-sm" @unless($automatico) data-recarregar @endunless>Enviar</button></form>
+                                    @if ($l->cliente && ! $l->cliente->trashed() && $l->cliente->aceita_whatsapp && $l->veiculo && ! $l->veiculo->trashed())
+                                        <form method="post" action="{{ route('lembretes.enviar', $l) }}" @unless($automatico) target="_blank" @endunless>@csrf<button class="btn-primario btn-sm">{{ $automatico ? 'Enviar' : 'Abrir WhatsApp' }}</button></form>
+                                        @unless ($automatico)
+                                            <form method="post" action="{{ route('lembretes.confirmar-manual', $l) }}" data-confirmar="Confirma que você enviou a mensagem pelo WhatsApp?">@csrf<button class="btn btn-sm">Confirmar envio</button></form>
+                                        @endunless
+                                    @else
+                                        <span class="text-xs text-erro">Sem autorização ou cadastro excluído</span>
+                                    @endif
                                     <form method="post" action="{{ route('lembretes.descartar', $l) }}">@csrf<button class="btn btn-sm text-suave">Descartar</button></form>
                                 @endif
                             </div>
