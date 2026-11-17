@@ -39,4 +39,5 @@ Tokens em `resources/css/app.css` (`asfalto`, `sinal`, `placa`...). Amarelo `sin
 - Estoque: `movimentar()` grava `saldo_anterior` e recalcula o custo médio nas entradas com custo; telas exigem motivo. Origens: manual, compra, os, ajuste, perda, devolucao_cliente, devolucao_fornecedor.
 - Histórico de cadastro: `HistoricoController` lê a `auditoria`; para um model novo aparecer, inclua em `TIPOS` e os rótulos em `ROTULOS`.
 - Importar/exportar planilha: `ImportacaoController` (CSV com BOM e `;`; valores começando com = + - @ recebem apóstrofo).
-- Documentação de operação em `docs/` (permissões, testes, runbook, auditoria). Atualize-a junto com o código.
+- Documentação de operação em `docs/` (permissões, testes, runbook, auditoria, deploy). Atualize-a junto com o código.
+- Deploy: push na `main` → Testes → Deploy por SSH (`docs/deploy.md`). Nunca editar direto no servidor; migration nova sempre com `down()`.

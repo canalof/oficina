@@ -1,0 +1,136 @@
+name: Deploy
+
+# Roda depois que os Testes passam num push na main (ou pelo botão "Run workflow").
+# Monta o pacote aqui no GitHub e envia por SSH ao servidor, como o usuário "deploy".
+# Configuração única: docs/deploy.md
+on:
+  workflow_run:
+    workflows: [Testes]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-producao
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER || 'deploy' }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/var/www/torque' }}
+    steps:
+      - name: Conferir segredos
+        id: segredos
+        run: |
+          if [ -z "$DEPLOY_HOST" ]; then
+            echo "::warning::Segredos de deploy não configurados (docs/deploy.md). Nada foi enviado."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.segredos.outputs.ok == 'true'
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: shivammathur/setup-php@v2
+        if: steps.segredos.outputs.ok == 'true'
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_mysql, xml, curl, zip, bcmath, intl, gd, exif
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        if: steps.segredos.outputs.ok == 'true'
+        with:
+          node-version: '22'
+
+      - name: Montar o pacote (composer --no-dev + npm build)
+        if: steps.segredos.outputs.ok == 'true'
+        run: |
+          composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-progress
+          npm ci
+          npm run build
+          git rev-parse --short HEAD > VERSAO
+          date -u +%FT%TZ >> VERSAO
+
+      - name: Preparar SSH
+        if: steps.segredos.outputs.ok == 'true'
+        env:
+          CHAVE: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$CHAVE" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$HOSTS" > ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<EOF
+          Host servidor
+            HostName $DEPLOY_HOST
+            Port $DEPLOY_PORT
+            User $DEPLOY_USER
+            IdentityFile ~/.ssh/deploy
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            ServerAliveInterval 30
+          EOF
+          ssh servidor "cd '$DEPLOY_PATH' && test -f artisan && test -f .env" \
+            || { echo "::error::Não consegui entrar no servidor ou a pasta $DEPLOY_PATH não tem o Torque."; exit 1; }
+
+      # Se o backup falhar, nada no servidor foi alterado.
+      - name: Backup do banco
+        if: steps.segredos.outputs.ok == 'true'
+        run: ssh servidor "cd '$DEPLOY_PATH' && php artisan torque:backup"
+
+      - name: Modo manutenção
+        if: steps.segredos.outputs.ok == 'true'
+        run: ssh servidor "cd '$DEPLOY_PATH' && php artisan down --retry=30"
+
+      # As exclusões também protegem o que já está no servidor: .env, storage
+      # (fotos, XML, backups, logs) e bootstrap/cache nunca são apagados.
+      - name: Enviar arquivos
+        if: steps.segredos.outputs.ok == 'true'
+        run: |
+          rsync -rlpz --delete --checksum --omit-dir-times --chmod=D2750,F640 \
+            --exclude='/.env' --exclude='/.env.*' \
+            --exclude='/.git/' --exclude='/.github/' --exclude='/.devcontainer/' \
+            --exclude='/node_modules/' --exclude='/tests/' --exclude='/docs/' \
+            --exclude='/storage/' --exclude='/public/storage' --exclude='/bootstrap/cache/' \
+            --exclude='/phpunit.xml' --exclude='/.phpunit.cache/' \
+            ./ "servidor:$DEPLOY_PATH/"
+
+      - name: Migrar banco e refazer caches
+        if: steps.segredos.outputs.ok == 'true'
+        run: |
+          ssh servidor "cd '$DEPLOY_PATH' && set -e \
+            && php artisan migrate --force \
+            && php artisan package:discover \
+            && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan event:cache \
+            && (sudo -n /usr/bin/systemctl reload php8.3-fpm || echo 'aviso: não recarreguei o PHP-FPM') \
+            && php artisan up \
+            && cat VERSAO"
+
+      - name: Conferir o site
+        if: steps.segredos.outputs.ok == 'true'
+        run: |
+          url=$(ssh servidor "grep -m1 '^APP_URL=' '$DEPLOY_PATH/.env' | cut -d= -f2- | tr -d '\"'\''\r'")
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$url/entrar" || true)
+          echo "$url/entrar respondeu $code"
+          [ "$code" = "200" ] || { echo "::error::O site não respondeu 200 depois do deploy."; exit 1; }
+
+      # Falhou depois de entrar em manutenção: o site fica fora do ar de propósito
+      # (o código novo pode não combinar com o banco). Veja docs/deploy.md, "Se o deploy falhar".
+      - name: Aviso de falha
+        if: failure()
+        run: echo "::error::Deploy falhou. Se passou do passo 'Modo manutenção', o sistema está em manutenção. Veja docs/deploy.md."

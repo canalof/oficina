@@ -143,9 +143,9 @@ Artisan::command('torque:admin {email} {--nome=Administrador} {--senha=}', funct
 })->purpose('Cria ou promove o administrador da plataforma');
 
 /*
- * Backup do banco (MySQL via mysqldump ou cópia do SQLite) em storage/app/backups, guardando os 14 mais recentes.
+ * Backup do banco (MySQL via mysqldump ou cópia do SQLite) em storage/app/backups, guardando os 30 mais recentes.
  */
-Artisan::command('torque:backup {--manter=14}', function () {
+Artisan::command('torque:backup {--manter=30}', function () {
     $pasta = storage_path('app/backups');
     @mkdir($pasta, 0750, true);
     $nome = $pasta.'/torque-'.now()->format('Y-m-d-His');
