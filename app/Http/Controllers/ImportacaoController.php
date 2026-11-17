@@ -8,7 +8,8 @@ use App\Models\Fabricante;
 use App\Models\Fornecedor;
 use App\Models\Produto;
 use App\Models\Veiculo;
-use App\Support\Dinheiro;
+use App\Support\CsvSeguro;
+use App\Support\ImportacaoNumeros;
 use App\Support\Documento;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -64,6 +65,9 @@ class ImportacaoController extends Controller
             return back()->with('erro', 'A planilha está vazia ou não é CSV. No Excel, use "Salvar como" → "CSV (separado por vírgulas)".');
         }
         $cab = array_map(fn ($c) => strtolower(trim(\Illuminate\Support\Str::ascii($c))), array_shift($linhas));
+        if (count($cab) !== count(array_unique($cab))) {
+            return back()->with('erro', 'A planilha possui nomes de colunas repetidos. Corrija o cabeçalho antes de importar.');
+        }
         if (! in_array('nome', $cab, true)) {
             return back()->with('erro', 'A primeira linha precisa ter os nomes das colunas (baixe o modelo).');
         }
@@ -130,7 +134,12 @@ class ImportacaoController extends Controller
         if (! isset(Produto::UNIDADES[$unidade])) {
             throw new \InvalidArgumentException("unidade \"{$unidade}\" não reconhecida (use ".implode(', ', array_keys(Produto::UNIDADES)).')');
         }
-        $num = fn ($v) => (float) str_replace(',', '.', str_replace('.', '', (string) $v)) ?: (float) str_replace(',', '.', (string) $v);
+        // Validar os números antes de atualizar qualquer registro ou criar
+        // fabricante/categoria. Dados inválidos não devem virar zero ou ser ignorados.
+        $minimo = ImportacaoNumeros::quantidade($l['estoque_minimo'] ?? null, 'Estoque mínimo');
+        $saldoInicial = ImportacaoNumeros::quantidade($l['estoque_atual'] ?? null, 'Estoque atual');
+        $preco = ImportacaoNumeros::centavos($l['preco'] ?? null, 'Preço');
+        $custo = ImportacaoNumeros::centavos($l['custo'] ?? null, 'Custo');
         $ref = fn (string $classe, ?string $n) => ($n = trim((string) $n)) !== '' ? $classe::firstOrCreate(['nome' => mb_substr($n, 0, 80)], ['ativo' => true])->id : null;
         $dados = array_filter([
             'nome' => mb_substr($nome, 0, 150), 'codigo' => trim($l['codigo'] ?? '') ?: null,
@@ -138,13 +147,12 @@ class ImportacaoController extends Controller
             'referencia_fabricante' => trim($l['referencia_fabricante'] ?? '') ?: null,
             'fabricante_id' => $ref(Fabricante::class, $l['fabricante'] ?? null), 'categoria_id' => $ref(Categoria::class, $l['categoria'] ?? null),
             'unidade' => $unidade, 'ncm' => preg_replace('/\D/', '', $l['ncm'] ?? '') ?: null, 'localizacao' => trim($l['localizacao'] ?? '') ?: null,
-            'preco_centavos' => trim($l['preco'] ?? '') !== '' ? Dinheiro::paraCentavos($l['preco']) : null,
-            'estoque_minimo' => trim($l['estoque_minimo'] ?? '') !== '' ? str_replace(',', '.', $l['estoque_minimo']) : null,
+            'preco_centavos' => $preco,
+            'estoque_minimo' => $minimo,
         ], fn ($v) => $v !== null);
         if (isset($dados['ncm']) && strlen($dados['ncm']) !== 8) {
             throw new \InvalidArgumentException("NCM precisa ter 8 números ({$l['ncm']})");
         }
-        $custo = trim($l['custo'] ?? '') !== '' ? Dinheiro::paraCentavos($l['custo']) : null;
 
         $existente = null;
         if (! empty($dados['codigo'])) {
@@ -160,7 +168,7 @@ class ImportacaoController extends Controller
             return;
         }
         $p = Produto::create($dados + ['custo_centavos' => $custo ?? 0]);
-        $qtd = trim($l['estoque_atual'] ?? '') !== '' ? (float) str_replace(',', '.', $l['estoque_atual']) : 0;
+        $qtd = $saldoInicial ?? 0.0;
         if ($qtd > 0) {
             $p->movimentar($qtd, 'entrada', 'manual', null, $custo, 'Estoque inicial (importação de planilha)');
         }
@@ -194,7 +202,7 @@ class ImportacaoController extends Controller
             fwrite($f, "\xEF\xBB\xBF");
             fputcsv($f, $cab, ';', '"', '');
             foreach ($linhas as $l) {
-                fputcsv($f, array_map(fn ($v) => is_string($v) && preg_match('/^[=+\-@]/', $v) ? "'".$v : $v, $l), ';', '"', '');
+                fputcsv($f, array_map(CsvSeguro::celula(...), $l), ';', '"', '');
             }
             fclose($f);
         }, $nome, ['Content-Type' => 'text/csv; charset=UTF-8']);

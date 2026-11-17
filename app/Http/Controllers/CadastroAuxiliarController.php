@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Categoria;
+use App\Models\CategoriaServico;
 use App\Models\Fabricante;
 use App\Support\Tenant;
 use Illuminate\Http\Request;
@@ -13,26 +14,33 @@ class CadastroAuxiliarController extends Controller
 {
     private function classe(string $tipo): string
     {
-        return $tipo === 'categorias' ? Categoria::class : Fabricante::class;
+        return match ($tipo) {
+            'categorias' => Categoria::class,
+            'categorias-servico' => CategoriaServico::class,
+            default => Fabricante::class,
+        };
     }
 
     public function index(string $tipo)
     {
-        $this->authorize('estoque.ver');
+        $this->authorize($tipo === 'categorias-servico' ? 'os.ver' : 'estoque.ver');
         $classe = $this->classe($tipo);
+        $servicos = $tipo === 'categorias-servico';
 
         return view('produtos.auxiliar', [
             'tipo' => $tipo,
-            'titulo' => $tipo === 'categorias' ? 'Categorias de produtos' : 'Fabricantes e marcas',
-            'itens' => $classe::withCount('produtos')->orderByDesc('ativo')->orderBy('nome')->get(),
+            'titulo' => $servicos ? 'Categorias de serviços' : ($tipo === 'categorias' ? 'Categorias de produtos' : 'Fabricantes e marcas'),
+            'itens' => $classe::withCount($servicos ? 'servicos as produtos_count' : 'produtos')->orderByDesc('ativo')->orderBy('nome')->get(),
+            'servicos' => $servicos,
+            'podeEditar' => auth()->user()->can($servicos ? 'servicos.gerenciar' : 'estoque.editar'),
         ]);
     }
 
     public function store(Request $request, string $tipo)
     {
-        $this->authorize('estoque.editar');
+        $this->authorize($tipo === 'categorias-servico' ? 'servicos.gerenciar' : 'estoque.editar');
         $classe = $this->classe($tipo);
-        $dados = $request->validate(['nome' => ['required', 'string', 'max:80', Rule::unique($tipo, 'nome')->where('empresa_id', Tenant::id())]],
+        $dados = $request->validate(['nome' => ['required', 'string', 'max:80', Rule::unique((new $classe)->getTable(), 'nome')->where('empresa_id', Tenant::id())]],
             ['nome.unique' => 'Já existe com esse nome.']);
         $classe::create($dados + ['ativo' => true]);
 
@@ -41,9 +49,9 @@ class CadastroAuxiliarController extends Controller
 
     public function update(Request $request, string $tipo, int $id)
     {
-        $this->authorize('estoque.editar');
+        $this->authorize($tipo === 'categorias-servico' ? 'servicos.gerenciar' : 'estoque.editar');
         $item = $this->classe($tipo)::findOrFail($id);
-        $dados = $request->validate(['nome' => ['required', 'string', 'max:80', Rule::unique($tipo, 'nome')->where('empresa_id', Tenant::id())->ignore($item->id)]],
+        $dados = $request->validate(['nome' => ['required', 'string', 'max:80', Rule::unique($item->getTable(), 'nome')->where('empresa_id', Tenant::id())->ignore($item->id)]],
             ['nome.unique' => 'Já existe com esse nome.']);
         $item->update(['nome' => $dados['nome'], 'ativo' => $request->boolean('ativo')]);
 

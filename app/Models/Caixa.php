@@ -45,7 +45,28 @@ class Caixa extends Model
         $entra = $this->movimentos()->where('tipo', 'recebimento')->selectRaw('forma, sum(valor_centavos) as total')->groupBy('forma')->pluck('total', 'forma');
         $sai = $this->movimentos()->where('tipo', 'estorno')->selectRaw('forma, sum(valor_centavos) as total')->groupBy('forma')->pluck('total', 'forma');
 
-        return $entra->map(fn ($v, $f) => (int) $v - (int) ($sai[$f] ?? 0))->all();
+        return self::saldoLiquidoPorForma($entra->all(), $sai->all());
+    }
+
+    /**
+     * Soma recebimentos e estornos de um caixa, incluindo formas que só
+     * tiveram estorno (ex.: cartão de venda recebida em caixa anterior).
+     *
+     * @param  array<string, int|numeric-string>  $recebimentos
+     * @param  array<string, int|numeric-string>  $estornos
+     * @return array<string, int>
+     */
+    public static function saldoLiquidoPorForma(array $recebimentos, array $estornos): array
+    {
+        $totais = [];
+        foreach ($recebimentos as $forma => $valor) {
+            $totais[$forma] = (int) $valor;
+        }
+        foreach ($estornos as $forma => $valor) {
+            $totais[$forma] = ($totais[$forma] ?? 0) - (int) $valor;
+        }
+
+        return $totais;
     }
 
     /** Quanto deveria haver de dinheiro na gaveta. */

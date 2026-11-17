@@ -55,7 +55,7 @@ return new class extends Migration
             $table->foreignId('produto_id')->constrained('produtos')->cascadeOnDelete();
             $table->string('codigo', 60);
             $table->timestamps();
-            $table->unique(['empresa_id', 'fornecedor_id', 'codigo']);
+            $table->unique(['empresa_id', 'fornecedor_id', 'codigo'], 'prod_forn_tenant_codigo_unique');
         });
 
         Schema::create('estoque_movimentos', function (Blueprint $table) {

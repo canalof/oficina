@@ -6,6 +6,8 @@ use App\Models\Empresa;
 use App\Models\Lembrete;
 use App\Services\WhatsApp\WhatsApp;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class LembreteController extends Controller
 {
@@ -27,30 +29,68 @@ class LembreteController extends Controller
         ]);
     }
 
-    /** Envia pela Evolution API ou abre o WhatsApp com a mensagem pronta. */
+    /**
+     * O envio automático é confirmado pela API. Abrir o WhatsApp manualmente
+     * NÃO prova que a mensagem foi enviada pelo operador.
+     */
     public function enviar(Lembrete $lembrete, WhatsApp $whatsapp)
     {
         $this->authorize('agenda.editar');
-        $empresa = Empresa::find($lembrete->empresa_id);
-        $texto = $lembrete->mensagem($empresa->nome_fantasia);
-        $fone = $lembrete->cliente?->whatsapp ?: $lembrete->cliente?->telefone;
+        $empresa = Empresa::findOrFail($lembrete->empresa_id);
+        $atual = Lembrete::whereKey($lembrete->id)->firstOrFail();
+        abort_unless($atual->status === 'pendente', 409, 'Lembrete não está pendente.');
+        $this->validarDestinatario($atual);
+        $texto = $atual->mensagem($empresa->nome_fantasia);
+        $fone = $atual->cliente->whatsapp ?: $atual->cliente->telefone;
 
         if ($whatsapp->disponivel($empresa)) {
-            if (! $whatsapp->enviar($empresa, $fone, $texto)) {
+            // Evita a duplicação sequencial por envio repetido da mesma tela.
+            // A confirmação aqui é o sucesso retornado pelo provedor.
+            if (! $whatsapp->enviar($empresa, $fone, $texto, 'lembrete', $atual->id)) {
                 return back()->with('erro', 'Não foi possível enviar pelo WhatsApp automático. Confira o número do cliente e a instância.');
             }
-            $lembrete->update(['status' => 'enviado', 'enviado_em' => now()]);
+            Lembrete::whereKey($atual->id)->where('status', 'pendente')
+                ->update(['status' => 'enviado', 'enviado_em' => now()]);
 
-            return back()->with('ok', 'Lembrete enviado.');
+            return back()->with('ok', 'Lembrete enviado pela integração.');
         }
 
         $numero = WhatsApp::numero($fone);
         if (! $numero) {
             return back()->with('erro', 'Cliente sem WhatsApp cadastrado.');
         }
-        $lembrete->update(['status' => 'enviado', 'enviado_em' => now()]);
 
+        // Não marcar como enviado: a pessoa ainda pode fechar o WhatsApp.
         return redirect()->away('https://wa.me/'.$numero.'?text='.rawurlencode($texto));
+    }
+
+    /** O operador confirma o envio apenas após fazê-lo no WhatsApp. */
+    public function confirmarEnvioManual(Lembrete $lembrete, WhatsApp $whatsapp)
+    {
+        $this->authorize('agenda.editar');
+        DB::transaction(function () use ($lembrete, $whatsapp) {
+            $atual = Lembrete::whereKey($lembrete->id)->lockForUpdate()->firstOrFail();
+            abort_unless($atual->status === 'pendente', 409, 'Lembrete não está pendente.');
+            $this->validarDestinatario($atual);
+            $empresa = Empresa::findOrFail($atual->empresa_id);
+            abort_if($whatsapp->disponivel($empresa), 409, 'O envio automático deve ser confirmado pela integração.');
+            abort_unless(WhatsApp::numero($atual->cliente->whatsapp ?: $atual->cliente->telefone), 422, 'Cliente sem WhatsApp cadastrado.');
+            $atual->update(['status' => 'enviado', 'enviado_em' => now()]);
+        });
+
+        return back()->with('ok', 'Envio manual confirmado.');
+    }
+
+    private function validarDestinatario(Lembrete $lembrete): void
+    {
+        $cliente = $lembrete->cliente;
+        $veiculo = $lembrete->veiculo;
+        if (! $cliente || $cliente->trashed() || ! $cliente->aceita_whatsapp || ! $veiculo || $veiculo->trashed()
+            || ($lembrete->inspecao_id && $veiculo->cliente_id !== $cliente->id)) {
+            throw ValidationException::withMessages([
+                'lembrete' => 'Lembrete não pode ser enviado: cliente sem autorização ou cadastro/veículo excluído.',
+            ]);
+        }
     }
 
     public function descartar(Lembrete $lembrete)

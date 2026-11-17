@@ -20,6 +20,13 @@ class LeitorXmlNfe
         if ($conteudo === '' || ! str_contains($conteudo, '<')) {
             throw new InvalidArgumentException('O arquivo não é um XML.');
         }
+        // XML fiscal não deve conter DTD/entidades: rejeitar antes do parser.
+        if (preg_match('/<!\s*(?:DOCTYPE|ENTITY)\b/i', $conteudo)) {
+            throw new InvalidArgumentException('XML com DTD ou entidades não é aceito.');
+        }
+        if (strlen($conteudo) > 5 * 1024 * 1024) {
+            throw new InvalidArgumentException('XML de NF-e excede o tamanho permitido.');
+        }
         // Sem acesso à rede e sem entidades externas
         $anterior = libxml_use_internal_errors(true);
         $xml = simplexml_load_string($conteudo, SimpleXMLElement::class, LIBXML_NONET | LIBXML_NOCDATA);
@@ -36,12 +43,23 @@ class LeitorXmlNfe
         $inf->registerXPathNamespace('n', self::NS);
         $um = fn (string $caminho) => ($r = $inf->xpath($caminho)) ? trim((string) $r[0]) : null;
 
+        if ($um('n:ide/n:mod') !== '55') {
+            throw new InvalidArgumentException('O documento não é uma NF-e modelo 55.');
+        }
+        $protocolo = $xml->xpath('//n:protNFe/n:infProt/n:cStat');
+        if ($protocolo && trim((string) $protocolo[0]) !== '100') {
+            throw new InvalidArgumentException('A NF-e não consta como autorizada no protocolo XML.');
+        }
+
         $chave = preg_replace('/\D/', '', (string) $inf['Id']);
         $itens = [];
         foreach ($inf->xpath('n:det') as $det) {
             $det->registerXPathNamespace('n', self::NS);
             $p = fn (string $c) => ($r = $det->xpath('n:prod/n:'.$c)) ? trim((string) $r[0]) : null;
             $qtd = (float) $p('qCom');
+            if (! is_finite($qtd) || $qtd <= 0 || ! is_finite((float) $p('vUnCom')) || (float) $p('vUnCom') < 0) {
+                throw new InvalidArgumentException('A NF-e contém item com quantidade ou custo inválido.');
+            }
             $ean = preg_replace('/\D/', '', (string) $p('cEAN'));
             $itens[] = [
                 'codigo_fornecedor' => $p('cProd'),
@@ -76,6 +94,8 @@ class LeitorXmlNfe
             'serie' => $um('n:ide/n:serie'),
             'emissao' => $emissao ? substr($emissao, 0, 10) : null,
             'total_centavos' => (int) round(((float) $um('n:total/n:ICMSTot/n:vNF')) * 100),
+            'destinatario_cpf_cnpj' => $um('n:dest/n:CNPJ') ?: $um('n:dest/n:CPF'),
+            'protocolo_autorizacao_presente' => (bool) $protocolo,
             'fornecedor' => [
                 'cpf_cnpj' => $um('n:emit/n:CNPJ') ?: $um('n:emit/n:CPF'),
                 'nome' => $um('n:emit/n:xFant') ?: $um('n:emit/n:xNome'),

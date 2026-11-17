@@ -7,6 +7,7 @@ use App\Services\Financeiro\Financeiro;
 use App\Support\Dinheiro;
 use DomainException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /** Recebe o pagamento de uma OS pronta (e entrega o carro, se pedido). */
 class RecebimentoController extends Controller
@@ -25,12 +26,26 @@ class RecebimentoController extends Controller
         }
 
         try {
-            if ($os->total_centavos > 0) {
-                $financeiro->receberOs($os, $linhas);
-            }
-            if ($request->boolean('entregar')) {
-                $os->refresh()->entregar();
-
+            // Recebimento + entrega são uma única operação atômica. Se faltar
+            // uma peça na entrega, nenhum título/caixa/recebimento é confirmado.
+            // A própria OS é bloqueada antes das operações financeiras.
+            $entregar = $request->boolean('entregar');
+            DB::transaction(function () use ($os, $financeiro, $linhas, $entregar) {
+                $atual = OrdemServico::whereKey($os->id)->lockForUpdate()->firstOrFail();
+                if ($atual->status !== \App\Support\StatusOs::Pronta) {
+                    throw new DomainException('A OS precisa estar pronta para registrar o recebimento.');
+                }
+                if ($atual->total_centavos > 0) {
+                    $financeiro->receberOs($atual, $linhas);
+                } elseif ($linhas !== []) {
+                    throw new DomainException('Uma OS sem valor não aceita pagamentos.');
+                }
+                if ($entregar) {
+                    $atual->refresh()->entregar();
+                }
+            }, 3);
+            if ($entregar) {
+                $os->refresh();
                 return back()->with('ok', 'Pagamento registrado e carro entregue.'.($os->garantiaAte() ? ' Garantia até '.$os->garantiaAte()->format('d/m/Y').'.' : ''));
             }
         } catch (DomainException $e) {

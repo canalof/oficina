@@ -23,4 +23,9 @@ class CompraItem extends Model
     {
         return $this->belongsTo(Produto::class)->withTrashed();
     }
+
+    public function compra(): BelongsTo
+    {
+        return $this->belongsTo(Compra::class);
+    }
 }

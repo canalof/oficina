@@ -74,9 +74,16 @@ class CadastrosEstoqueTest extends TestCase
         $this->post("/os/{$os->id}/acao/aprovar", ['itens' => [$item->id]]);
         $versao = $this->em($u, fn () => $os->fresh()->versao);
 
-        // só a descrição: continua aprovado
-        $this->put("/os/{$os->id}/itens/{$item->id}", ['descricao' => 'Alinhamento 3D', 'quantidade' => '1', 'valor' => '80,00'])->assertSessionHasNoErrors();
+        // nada muda (mesma descrição, quantidade e valor): continua aprovado
+        $this->put("/os/{$os->id}/itens/{$item->id}", ['descricao' => 'Alinhamento', 'quantidade' => '1', 'valor' => '80,00'])->assertSessionHasNoErrors();
         $this->assertSame('aprovado', $this->em($u, fn () => $item->fresh()->situacao));
+
+        // a descrição muda: a aprovação era daquele serviço, então volta para aprovação
+        $this->put("/os/{$os->id}/itens/{$item->id}", ['descricao' => 'Alinhamento 3D', 'quantidade' => '1', 'valor' => '80,00'])->assertSessionHasNoErrors();
+        $this->assertSame('pendente', $this->em($u, fn () => $item->fresh()->situacao));
+        $this->post("/os/{$os->id}/acao/aprovar", ['itens' => [$item->id]]);
+        $this->assertSame('aprovado', $this->em($u, fn () => $item->fresh()->situacao));
+        $versao = $this->em($u, fn () => $os->fresh()->versao);
 
         // valor muda: volta para pendente, total e versão mudam
         $this->put("/os/{$os->id}/itens/{$item->id}", ['descricao' => 'Alinhamento 3D', 'quantidade' => '2', 'valor' => '90,00'])->assertSessionHasNoErrors();

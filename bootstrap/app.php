@@ -25,6 +25,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectUsersTo(fn () => route('painel'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->dontFlash(['pix_chave', 'fiscal_token', 'cpf_condutor', 'registro_cnh', 'cpf', 'contato', 'autorizacao',
+            'credenciais', 'cpf_teste', 'registro_teste', 'qr']);
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );

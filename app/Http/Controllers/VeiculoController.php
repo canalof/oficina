@@ -61,7 +61,12 @@ class VeiculoController extends Controller
         $this->authorize('veiculos.ver');
         $veiculo->load(['cliente', 'donos.cliente']);
 
-        return view('veiculos.show', ['veiculo' => $veiculo, 'clientes' => $this->clientes()]);
+        return view('veiculos.show', [
+            'veiculo' => $veiculo,
+            'clientes' => $this->clientes(),
+            'trocasOleo' => $veiculo->ordens()->where('status', \App\Support\StatusOs::Entregue)
+                ->whereHas('trocaOleo')->with('trocaOleo')->limit(10)->get(),
+        ]);
     }
 
     public function edit(Veiculo $veiculo)
@@ -75,15 +80,19 @@ class VeiculoController extends Controller
     {
         $this->authorize('veiculos.editar');
         $dados = $this->validar($request, $veiculo);
+        // Campo ausente significa "manter proprietário"; somente null
+        // explícito, após validação, solicita deixar o veículo sem dono.
+        $donoInformado = array_key_exists('cliente_id', $dados);
         $novoDono = $dados['cliente_id'] ?? null;
         unset($dados['cliente_id']);
 
-        DB::transaction(function () use ($veiculo, $dados, $novoDono) {
-            $veiculo->update($dados);
-            if ((int) $novoDono !== (int) $veiculo->cliente_id) {
-                $veiculo->transferirPara($novoDono ? Cliente::findOrFail($novoDono) : null);
+        DB::transaction(function () use ($veiculo, $dados, $novoDono, $donoInformado) {
+            $atual = Veiculo::whereKey($veiculo->getKey())->lockForUpdate()->firstOrFail();
+            $atual->update($dados);
+            if ($donoInformado && (int) $novoDono !== (int) $atual->cliente_id) {
+                $atual->transferirPara($novoDono ? Cliente::findOrFail($novoDono) : null);
             }
-        });
+        }, 3);
 
         return redirect()->route('veiculos.show', $veiculo)->with('ok', 'Veículo atualizado.');
     }

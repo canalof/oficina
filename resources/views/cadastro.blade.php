@@ -1,6 +1,10 @@
-<x-pagina-simples titulo="Teste grátis">
-    <h1 class="mb-1">Teste o Torque por 14 dias</h1>
-    <p class="mb-6 text-suave">Sem cartão. Ao fim do teste, escolha o plano para continuar.</p>
+<x-pagina-simples titulo="Cadastro da oficina">
+    <h1 class="mb-1">Cadastre sua oficina</h1>
+    <p class="mb-4 text-suave">Envie seu cadastro e aguarde a liberação pela plataforma.</p>
+    <div class="card card-corpo mb-6">
+        <h2>Teste grátis de {{ \App\Models\Empresa::DIAS_TRIAL }} dias</h2>
+        <p class="mt-1 text-suave">O teste começa após a aprovação. Você pode escolher um plano abaixo e decidir se quer assinar ao fim do teste.</p>
+    </div>
     <form method="post" action="{{ route('cadastro.store') }}" class="space-y-4">
         @csrf
         <x-campo nome="oficina" rotulo="Nome da oficina" required autofocus />
@@ -25,7 +29,7 @@
         </fieldset>
         <label class="flex items-start gap-2 text-[15px]"><input type="checkbox" name="aceite" value="1" class="mt-1 h-4 w-4 accent-asfalto" @checked(old('aceite'))> <span>Li e aceito os termos de uso e a política de privacidade.</span></label>
         @error('aceite')<p class="erro-msg">{{ $message }}</p>@enderror
-        <button class="btn-primario w-full py-3">Começar o teste grátis</button>
+        <button class="btn-primario w-full py-3">Enviar cadastro para aprovação</button>
     </form>
     <a href="{{ route('login') }}" class="mt-5 text-[15px] font-semibold text-asfalto-3 hover:underline">Já tenho acesso</a>
 </x-pagina-simples>

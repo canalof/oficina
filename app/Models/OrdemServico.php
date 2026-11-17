@@ -80,6 +80,36 @@ class OrdemServico extends Model
         return $this->hasMany(OrdemServicoItem::class)->orderBy('id');
     }
 
+    public function laudo(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(OrdemServicoLaudo::class);
+    }
+
+    public function comprasPendentes(): HasMany
+    {
+        return $this->hasMany(OsCompraPendente::class);
+    }
+
+    public function terceirizados(): HasMany
+    {
+        return $this->hasMany(OsTerceirizado::class);
+    }
+
+    public function trocaOleo(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(OsTrocaOleo::class);
+    }
+
+    public function garantias(): HasMany
+    {
+        return $this->hasMany(OrdemServicoGarantia::class)->latest('id');
+    }
+
+    public function inspecoes(): HasMany
+    {
+        return $this->hasMany(OrdemServicoInspecao::class);
+    }
+
     public function fotos(): HasMany
     {
         return $this->hasMany(OrdemServicoFoto::class)->orderBy('id');
@@ -101,13 +131,17 @@ class OrdemServico extends Model
         return $this->status !== StatusOs::Cancelada && (! $this->token_expira_em || $this->token_expira_em->isFuture());
     }
 
-    /** Gera um link novo (o antigo deixa de funcionar) e renova a validade. */
+    /** Gera um link novo de forma serializada com a aprovação pública. */
     public function novoLink(): void
     {
-        $this->token = Str::random(40);
-        $this->token_expira_em = now()->addDays(static::validadeDias());
-        $this->saveQuietly();
-        $this->registrar('Novo link do orçamento gerado (o anterior foi desativado)');
+        DB::transaction(function () {
+            $atual = self::whereKey($this->getKey())->lockForUpdate()->firstOrFail();
+            $atual->token = Str::random(40);
+            $atual->token_expira_em = now()->addDays(static::validadeDias());
+            $atual->saveQuietly();
+            $atual->registrar('Novo link do orçamento gerado (o anterior foi desativado)');
+        }, 3);
+        $this->refresh();
     }
 
     /** Itens ou valores mudaram: aceite anterior não vale para a versão nova. */
@@ -130,6 +164,11 @@ class OrdemServico extends Model
         return $this->hasMany(NotaFiscal::class)->orderByDesc('id');
     }
 
+    public function mensagens(): HasMany
+    {
+        return $this->hasMany(OsMensagem::class);
+    }
+
     public function eventos(): HasMany
     {
         return $this->hasMany(OrdemServicoEvento::class)->orderByDesc('id');
@@ -141,7 +180,25 @@ class OrdemServico extends Model
     public static function abrir(array $dados): self
     {
         return DB::transaction(function () use ($dados) {
-            $ultimo = static::withTrashed()->lockForUpdate()->max('numero');
+            // Serializa a numeração inclusive quando a empresa ainda não possui OS.
+            // lockForUpdate() sobre MAX(numero) não bloqueia uma linha inexistente.
+            $empresaId = Tenant::id();
+            if (! $empresaId || ! Empresa::whereKey($empresaId)->lockForUpdate()->exists()) {
+                throw new DomainException('Empresa não encontrada para abertura da OS.');
+            }
+            // A transferência de propriedade bloqueia a linha do veículo.
+            // Usar o mesmo bloqueio impede abrir OS com o antigo proprietário
+            // quando a transferência foi confirmada em outra requisição.
+            $veiculo = Veiculo::whereKey($dados['veiculo_id'] ?? null)->lockForUpdate()->first();
+            if (! $veiculo) {
+                throw new DomainException('Veículo não encontrado nesta oficina.');
+            }
+            if (array_key_exists('cliente_id', $dados)
+                && (int) $dados['cliente_id'] !== (int) $veiculo->cliente_id) {
+                throw new DomainException('O proprietário do veículo mudou. Atualize a página antes de abrir a OS.');
+            }
+            $dados['cliente_id'] = $veiculo->cliente_id;
+            $ultimo = static::withTrashed()->max('numero');
             $os = new static($dados);
             $os->numero = ((int) $ultimo) + 1;
             $os->status = StatusOs::Orcamento;
@@ -228,16 +285,24 @@ class OrdemServico extends Model
     /** Orçamento enviado ao cliente (pelo WhatsApp ou link). */
     public function marcarEnviado(): void
     {
-        if (! $this->itens()->exists()) {
-            throw new DomainException('Adicione pelo menos um serviço ou peça antes de enviar o orçamento.');
-        }
-        $this->enviado_em = now();
-        if ($this->status === StatusOs::Orcamento) {
-            $this->mudar(StatusOs::Aguardando, 'Orçamento enviado ao cliente');
-        } else {
-            $this->save();
-            $this->registrar('Itens adicionais enviados ao cliente');
-        }
+        DB::transaction(function () {
+            $atual = self::whereKey($this->getKey())->lockForUpdate()->firstOrFail();
+            $atual->exigir(
+                [StatusOs::Orcamento, StatusOs::Aguardando, StatusOs::Aprovada, StatusOs::EmServico],
+                'Esta OS não aceita novo envio de orçamento.'
+            );
+            if (! $atual->itens()->exists()) {
+                throw new DomainException('Adicione pelo menos um serviço ou peça antes de enviar o orçamento.');
+            }
+            $atual->enviado_em = now();
+            if ($atual->status === StatusOs::Orcamento) {
+                $atual->mudar(StatusOs::Aguardando, 'Orçamento enviado ao cliente');
+            } else {
+                $atual->save();
+                $atual->registrar('Itens adicionais enviados ao cliente');
+            }
+        }, 3);
+        $this->refresh();
     }
 
     /**
@@ -245,18 +310,31 @@ class OrdemServico extends Model
      *
      * @param  list<int>|null  $aprovados  null = aprovar todos os pendentes
      */
-    public function aprovar(?array $aprovados, string $quem, ?string $ip = null, string $canal = 'balcao', ?string $navegador = null, ?int $versaoVista = null): void
+    public function aprovar(?array $aprovados, string $quem, ?string $ip = null, string $canal = 'balcao', ?string $navegador = null, ?int $versaoVista = null, ?string $tokenUsado = null): void
     {
-        if ($versaoVista !== null && $versaoVista !== (int) $this->versao) {
-            throw new DomainException('O orçamento foi alterado pela oficina depois que você abriu esta página. Atualize a página e confira de novo.');
-        }
-        $this->exigir([StatusOs::Orcamento, StatusOs::Aguardando, StatusOs::Aprovada, StatusOs::EmServico], 'Esta OS não está aberta para aprovação.');
-        if (! $this->temPendentes()) {
-            throw new DomainException('Não há itens esperando aprovação.');
-        }
-
-        DB::transaction(function () use ($aprovados, $quem, $ip, $canal, $navegador) {
-            $pendentes = $this->itens()->where('situacao', 'pendente')->lockForUpdate()->get();
+        // É essencial bloquear a OS ANTES de validar versão, token, status e itens.
+        // Edição de itens, rotação de link e aprovação usam o mesmo bloqueio.
+        DB::transaction(function () use ($aprovados, $quem, $ip, $canal, $navegador, $versaoVista, $tokenUsado) {
+            $atual = self::whereKey($this->getKey())->lockForUpdate()->firstOrFail();
+            if ($tokenUsado !== null && (! hash_equals((string) $atual->token, $tokenUsado) || ! $atual->linkValido())) {
+                throw new DomainException('Este link não está mais válido. Solicite um novo link à oficina.');
+            }
+            if ($versaoVista !== null && $versaoVista !== (int) $atual->versao) {
+                throw new DomainException('O orçamento foi alterado pela oficina depois que você abriu esta página. Atualize a página e confira de novo.');
+            }
+            $atual->exigir([StatusOs::Orcamento, StatusOs::Aguardando, StatusOs::Aprovada, StatusOs::EmServico], 'Esta OS não está aberta para aprovação.');
+            $pendentes = $atual->itens()->where('situacao', 'pendente')->lockForUpdate()->get();
+            if ($pendentes->isEmpty()) {
+                throw new DomainException('Não há itens esperando aprovação. Atualize a página antes de tentar novamente.');
+            }
+            // Um ID inexistente/pertencente a outra OS não pode ser interpretado
+            // silenciosamente como recusa de todos os itens válidos.
+            if ($aprovados !== null && $aprovados !== []) {
+                $idsPendentes = $pendentes->pluck('id')->map(fn ($id) => (int) $id)->all();
+                if (array_diff(array_unique($aprovados), $idsPendentes) !== []) {
+                    throw new DomainException('A seleção contém itens que não estão pendentes neste orçamento. Atualize a página.');
+                }
+            }
             $sim = $nao = 0;
             $snapshot = [];
             foreach ($pendentes as $item) {
@@ -265,15 +343,15 @@ class OrdemServico extends Model
                 $ok ? $sim++ : $nao++;
                 $snapshot[] = ['id' => $item->id, 'descricao' => $item->descricao, 'tipo' => $item->tipo, 'quantidade' => (string) $item->quantidade, 'valor_unitario_centavos' => $item->valor_unitario_centavos, 'total_centavos' => $item->total_centavos, 'decisao' => $ok ? 'aprovado' : 'recusado'];
             }
-            $this->recalcular();
+            $atual->recalcular();
 
             $quando = now();
             $nomeLimpo = mb_substr($quem, 0, 120);
             OrcamentoAceite::create([
-                'ordem_servico_id' => $this->id, 'user_id' => auth()->id(), 'versao' => (int) $this->versao, 'canal' => $canal,
+                'ordem_servico_id' => $atual->id, 'user_id' => auth()->id(), 'versao' => (int) $atual->versao, 'canal' => $canal,
                 'nome' => $nomeLimpo, 'ip' => $ip, 'navegador' => $navegador ? mb_substr($navegador, 0, 255) : null,
-                'itens' => $snapshot, 'total_centavos' => $this->total_centavos,
-                'hash' => OrcamentoAceite::calcularHash($this->id, (int) $this->versao, $nomeLimpo, $snapshot, $this->total_centavos, $quando->toIso8601String()),
+                'itens' => $snapshot, 'total_centavos' => $atual->total_centavos,
+                'hash' => OrcamentoAceite::calcularHash($atual->id, (int) $atual->versao, $nomeLimpo, $snapshot, $atual->total_centavos, $quando->toIso8601String()),
                 'created_at' => $quando,
             ]);
 
@@ -281,45 +359,59 @@ class OrdemServico extends Model
                 ? "Orçamento recusado por {$quem}"
                 : "Aprovado por {$quem}: {$sim} ".($sim === 1 ? 'item' : 'itens').($nao ? ", {$nao} recusado(s)" : '');
 
-            $this->aprovado_em = now();
-            $this->aprovado_por = mb_substr($quem, 0, 120);
-            $this->aprovado_ip = $ip;
+            $atual->aprovado_em = now();
+            $atual->aprovado_por = mb_substr($quem, 0, 120);
+            $atual->aprovado_ip = $ip;
 
-            if (in_array($this->status, [StatusOs::Orcamento, StatusOs::Aguardando], true)) {
-                // Tudo recusado: volta para orçamento, a equipe decide o que fazer
-                $this->mudar($sim ? StatusOs::Aprovada : StatusOs::Orcamento, $texto);
+            if (in_array($atual->status, [StatusOs::Orcamento, StatusOs::Aguardando], true)) {
+                $atual->mudar($sim ? StatusOs::Aprovada : StatusOs::Orcamento, $texto);
             } else {
-                $this->save();
-                $this->registrar($texto);
+                $atual->save();
+                $atual->registrar($texto);
             }
-        });
+        }, 3);
+        $this->refresh();
     }
 
     public function iniciar(): void
     {
-        $this->exigir([StatusOs::Aprovada], 'Só dá para começar o serviço depois da aprovação.');
-        $this->mudar(StatusOs::EmServico, 'Serviço iniciado', ['iniciado_em' => now()]);
+        DB::transaction(function () {
+            $atual = self::whereKey($this->getKey())->lockForUpdate()->firstOrFail();
+            $atual->exigir([StatusOs::Aprovada], 'Só dá para começar o serviço depois da aprovação.');
+            $atual->mudar(StatusOs::EmServico, 'Serviço iniciado', ['iniciado_em' => now()]);
+        }, 3);
+        $this->refresh();
     }
 
     public function concluir(): void
     {
-        $this->exigir([StatusOs::EmServico, StatusOs::Aprovada], 'O serviço precisa estar aprovado ou em andamento.');
-        if ($this->temPendentes()) {
-            throw new DomainException('Há itens esperando aprovação do cliente. Aprove ou remova antes de concluir.');
-        }
-        $this->mudar(StatusOs::Pronta, 'Carro pronto para retirar', ['concluido_em' => now()]);
+        DB::transaction(function () {
+            $atual = self::whereKey($this->getKey())->lockForUpdate()->firstOrFail();
+            $atual->exigir([StatusOs::EmServico, StatusOs::Aprovada], 'O serviço precisa estar aprovado ou em andamento.');
+            if ($atual->temPendentes()) {
+                throw new DomainException('Há itens esperando aprovação do cliente. Aprove ou remova antes de concluir.');
+            }
+            $atual->mudar(StatusOs::Pronta, 'Carro pronto para retirar', ['concluido_em' => now()]);
+        }, 3);
+        $this->refresh();
     }
 
     public function entregar(): void
     {
-        $this->exigir([StatusOs::Pronta], 'Marque o carro como pronto antes de entregar.');
-        if ($this->total_centavos > 0 && ! $this->recebido_em) {
-            throw new DomainException('Registre o pagamento antes de entregar (pode ser "a prazo").');
-        }
+        // O estado precisa ser conferido DEPOIS do bloqueio, não na instância
+        // carregada pelo route model binding: duas entregas simultâneas não
+        // podem gerar duas baixas, comissões ou lembretes.
         DB::transaction(function () {
-            $this->mudar(StatusOs::Entregue, 'Carro entregue ao cliente', ['entregue_em' => now()]);
-            app(\App\Services\Os\AoEntregar::class)->executar($this);
+            $atual = self::whereKey($this->getKey())->lockForUpdate()->firstOrFail();
+            $atual->exigir([StatusOs::Pronta], 'Marque o carro como pronto antes de entregar.');
+            if ($atual->total_centavos > 0 && ! $atual->recebido_em) {
+                throw new DomainException('Registre o pagamento antes de entregar (pode ser "a prazo").');
+            }
+            app(\App\Services\Cnh\VerificationService::class)->concluirRetirada($atual);
+            $atual->mudar(StatusOs::Entregue, 'Carro entregue ao cliente', ['entregue_em' => now()]);
+            app(\App\Services\Os\AoEntregar::class)->executar($atual);
         });
+        $this->refresh();
     }
 
     /** Valor dos serviços aprovados, já com a parte proporcional do desconto. */
@@ -347,8 +439,19 @@ class OrdemServico extends Model
 
     public function cancelar(string $motivo): void
     {
-        $this->exigir([StatusOs::Orcamento, StatusOs::Aguardando, StatusOs::Aprovada, StatusOs::EmServico, StatusOs::Pronta], 'Esta OS já foi encerrada.');
-        $this->mudar(StatusOs::Cancelada, 'OS cancelada: '.$motivo, ['cancelado_em' => now(), 'motivo_cancelamento' => mb_substr($motivo, 0, 255), 'token' => Str::random(40)]);
+        DB::transaction(function () use ($motivo) {
+            $atual = self::whereKey($this->getKey())->lockForUpdate()->firstOrFail();
+            $atual->exigir([StatusOs::Orcamento, StatusOs::Aguardando, StatusOs::Aprovada, StatusOs::EmServico, StatusOs::Pronta], 'Esta OS já foi encerrada.');
+            if ($atual->recebido_em !== null || $atual->contasReceber()->exists()) {
+                throw new DomainException('Esta OS já possui cobrança ou recebimento. Regularize os títulos e estornos antes de cancelar.');
+            }
+            $atual->mudar(StatusOs::Cancelada, 'OS cancelada: '.$motivo, [
+                'cancelado_em' => now(),
+                'motivo_cancelamento' => mb_substr($motivo, 0, 255),
+                'token' => Str::random(40),
+            ]);
+        }, 3);
+        $this->refresh();
     }
 
     /**
@@ -357,16 +460,22 @@ class OrdemServico extends Model
      */
     public function reabrir(string $motivo): void
     {
-        $this->exigir([StatusOs::Entregue], 'Só é possível reabrir uma OS entregue.');
         DB::transaction(function () use ($motivo) {
-            foreach ($this->itens()->where('estoque_baixado', true)->with('produto')->get() as $item) {
-                $item->produto?->movimentar((float) $item->quantidade, 'entrada', 'os', $this->id, $item->produto->custo_centavos, 'Reabertura da OS '.$this->numeroFormatado());
+            // Serializa reabertura com entrega e outras reaberturas.
+            $atual = self::whereKey($this->getKey())->lockForUpdate()->firstOrFail();
+            $atual->exigir([StatusOs::Entregue], 'Só é possível reabrir uma OS entregue.');
+            foreach ($atual->itens()->where('estoque_baixado', true)->with('produto')->get() as $item) {
+                if (! $item->produto) {
+                    throw new DomainException('Peça vinculada à OS não encontrada para estorno.');
+                }
+                $item->produto->movimentar((float) $item->quantidade, 'entrada', 'os', $atual->id, $item->produto->custo_centavos, 'Reabertura da OS '.$atual->numeroFormatado());
                 $item->update(['estoque_baixado' => false]);
             }
-            Comissao::where('ordem_servico_id', $this->id)->whereNull('paga_em')->delete();
-            Lembrete::where('ordem_servico_id', $this->id)->where('status', 'pendente')->update(['status' => 'descartado']);
-            $this->mudar(StatusOs::Pronta, 'OS reaberta: '.mb_substr($motivo, 0, 200), ['entregue_em' => null]);
+            Comissao::where('ordem_servico_id', $atual->id)->whereNull('paga_em')->delete();
+            Lembrete::where('ordem_servico_id', $atual->id)->where('status', 'pendente')->update(['status' => 'descartado']);
+            $atual->mudar(StatusOs::Pronta, 'OS reaberta: '.mb_substr($motivo, 0, 200), ['entregue_em' => null]);
         });
+        $this->refresh();
     }
 
     // ---------- Apoio ----------

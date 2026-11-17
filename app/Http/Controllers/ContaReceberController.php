@@ -9,6 +9,7 @@ use App\Support\Dinheiro;
 use App\Support\Tenant;
 use DomainException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ContaReceberController extends Controller
@@ -39,7 +40,7 @@ class ContaReceberController extends Controller
         $this->authorize('financeiro.editar');
         $request->merge(['valor_centavos' => Dinheiro::paraCentavos($request->input('valor'))]);
         $dados = $request->validate([
-            'cliente_id' => ['nullable', Rule::exists('clientes', 'id')->where('empresa_id', Tenant::id())],
+            'cliente_id' => ['nullable', Rule::exists('clientes', 'id')->where('empresa_id', Tenant::id())->whereNull('deleted_at')],
             'descricao' => ['required', 'string', 'max:200'],
             'valor_centavos' => ['integer', 'min:1'],
             'vencimento' => ['required', 'date'],
@@ -78,8 +79,17 @@ class ContaReceberController extends Controller
     public function cancelar(ContaReceber $conta)
     {
         $this->authorize('financeiro.editar');
-        abort_unless($conta->status === 'aberta', 422);
-        $conta->update(['status' => 'cancelada']);
+        // Revalidar sob bloqueio para não cancelar um recebimento concluído
+        // por outra requisição depois do route binding.
+        $cancelada = DB::transaction(function () use ($conta) {
+            $atual = ContaReceber::query()->whereKey($conta->getKey())->lockForUpdate()->firstOrFail();
+            if ($atual->status !== 'aberta') {
+                return false;
+            }
+            $atual->update(['status' => 'cancelada']);
+            return true;
+        }, 3);
+        abort_unless($cancelada, 422, 'Somente contas em aberto podem ser canceladas.');
 
         return back()->with('ok', 'Conta cancelada.');
     }

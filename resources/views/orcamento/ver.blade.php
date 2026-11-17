@@ -5,6 +5,10 @@
     $aprovados = $os->itens->where('situacao', 'aprovado');
     $recusados = $os->itens->where('situacao', 'recusado');
     $nome = $os->cliente ? explode(' ', trim($os->cliente->nome))[0] : null;
+    $complementar = $aprovados->isNotEmpty() && $pendentes->isNotEmpty();
+    $inspecoesPorItem = $os->inspecoes->groupBy('item_id');
+    $inspecoesGerais = $os->inspecoes->reject(fn ($i) => $pendentes->contains('id', $i->item_id));
+    $fotosGerais = $os->fotos->whereNotIn('id', $os->inspecoes->pluck('foto_id')->filter());
 @endphp
 <!doctype html>
 <html lang="pt-BR">
@@ -37,7 +41,17 @@
         </div>
 
         @if ($pendentes->isNotEmpty())
-            <p class="mb-4 text-[15px]">{{ $nome ? 'Olá, '.$nome.'! ' : '' }}Confira o que encontramos e marque o que você autoriza. Os itens desmarcados não serão feitos.</p>
+            <section class="card card-corpo mb-4 space-y-2">
+                <h2>{{ $complementar ? 'Orçamento complementar' : 'Itens para aprovação' }}</h2>
+                <p>{{ $nome ? 'Olá, '.$nome.'! ' : '' }}Marque os itens que você quer autorizar. Os desmarcados ficam de fora desta aprovação.</p>
+                @if ($os->previsao_entrega)<p class="text-sm">Previsão atual de entrega <strong>{{ $os->previsao_entrega->format('d/m/Y H:i') }}</strong></p>@endif
+                @if ($complementar)
+                    <details class="text-sm">
+                        <summary class="cursor-pointer font-semibold">Serviços e peças já aprovados · {{ Dinheiro::formatar($aprovados->sum('total_centavos')) }}</summary>
+                        <ul class="mt-2 list-disc pl-5">@foreach ($aprovados as $item)<li>{{ $item->descricao }} · {{ Dinheiro::formatar($item->total_centavos) }}</li>@endforeach</ul>
+                    </details>
+                @endif
+            </section>
         @elseif ($os->status === StatusOs::Entregue)
             <p class="mb-4 text-[15px]">Serviço concluído e veículo entregue em {{ $os->entregue_em->format('d/m/Y') }}.@if($os->garantiaAte()) Garantia até {{ $os->garantiaAte()->format('d/m/Y') }}.@endif</p>
         @elseif ($aprovados->isNotEmpty())
@@ -51,9 +65,16 @@
             </section>
         @endif
 
-        @if ($os->fotos->isNotEmpty())
+        @if ($inspecoesGerais->isNotEmpty())
+            <section class="card card-corpo mb-4 space-y-2">
+                <h2>Inspeção visual do veículo</h2>
+                @include('os._inspecoes', ['publico' => true, 'registros' => $inspecoesGerais])
+            </section>
+        @endif
+
+        @if ($fotosGerais->isNotEmpty())
             <div class="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                @foreach ($os->fotos as $f)
+                @foreach ($fotosGerais as $f)
                     <a href="{{ route('orcamento.foto', [$os->token, $f->id]) }}" target="_blank" class="block overflow-hidden rounded-md border border-linha bg-white">
                         <img src="{{ route('orcamento.foto', [$os->token, $f->id]) }}" alt="{{ $f->legenda ?: 'Foto do veículo' }}" loading="lazy" class="aspect-[4/3] w-full object-cover">
                         @if ($f->legenda)<span class="block truncate px-2 py-1 text-xs text-suave">{{ $f->legenda }}</span>@endif
@@ -63,7 +84,7 @@
         @endif
 
         @if ($pendentes->isNotEmpty())
-            <form method="post" action="{{ route('orcamento.aprovar', $os->token) }}" class="card" data-orcamento>
+            <form method="post" action="{{ route('orcamento.aprovar', $os->token) }}" class="card mb-24" data-orcamento>
                 @csrf
                 <input type="hidden" name="versao" value="{{ $os->versao }}">
                 <ul class="divide-y divide-linha">
@@ -77,6 +98,11 @@
                                 </span>
                                 <span class="whitespace-nowrap font-semibold">{{ Dinheiro::formatar($item->total_centavos) }}</span>
                             </label>
+                            @if ($inspecoesPorItem->has($item->id))
+                                <div class="px-4 pb-4 sm:pl-13">
+                                    @include('os._inspecoes', ['publico' => true, 'registros' => $inspecoesPorItem->get($item->id), 'dentroDoItem' => true])
+                                </div>
+                            @endif
                         </li>
                     @endforeach
                 </ul>
@@ -88,13 +114,9 @@
                     @if ($os->desconto_centavos)
                         <div class="flex justify-between text-[15px] text-suave"><span>Desconto</span><span>− {{ Dinheiro::formatar($os->desconto_centavos) }}</span></div>
                     @endif
-                    <div class="flex items-baseline justify-between text-lg font-semibold">
-                        <span>Total</span>
-                        <span data-orcamento-total data-base="{{ $jaAprovado - $os->desconto_centavos }}">{{ Dinheiro::formatar($jaAprovado + $pendentes->sum('total_centavos') - $os->desconto_centavos) }}</span>
-                    </div>
                     @error('itens')<p class="erro-msg">{{ $message }}</p>@enderror
 
-                    <label class="campo mt-4"><span>Seu nome, para confirmar</span>
+                    <label class="campo mt-4 scroll-mb-28" id="confirmar-orcamento"><span>Seu nome, para confirmar</span>
                         <input name="nome" value="{{ old('nome') }}" class="input @error('nome') input-erro @enderror" required maxlength="120" autocomplete="name">
                     </label>
                     @error('nome')<p class="erro-msg">{{ $message }}</p>@enderror
@@ -102,6 +124,16 @@
                     <div class="mt-4 grid gap-2 sm:grid-cols-[2fr_1fr]">
                         <button name="decisao" value="aprovar" class="btn-primario py-3 text-base">Aprovar itens marcados</button>
                         <button name="decisao" value="recusar" class="btn py-3" formnovalidate data-confirmar="Recusar todo o orçamento?">Recusar orçamento</button>
+                    </div>
+                </div>
+                <div class="fixed inset-x-0 bottom-0 z-20 border-t border-linha bg-white shadow-lg pb-[env(safe-area-inset-bottom)]">
+                    <div class="mx-auto flex max-w-2xl items-center justify-between gap-2 px-4 py-3">
+                        <div>
+                            <span class="block text-xs text-suave">Total com a seleção</span>
+                            <strong aria-live="polite" data-orcamento-total data-base="{{ $jaAprovado - $os->desconto_centavos }}">{{ Dinheiro::formatar($jaAprovado + $pendentes->sum('total_centavos') - $os->desconto_centavos) }}</strong>
+                            @if ($complementar)<span class="block text-xs text-suave">Adicionais selecionados <span data-orcamento-adicionais>{{ Dinheiro::formatar($pendentes->sum('total_centavos')) }}</span></span>@endif
+                        </div>
+                        <a href="#confirmar-orcamento" class="btn-sinal">Revisar e confirmar</a>
                     </div>
                 </div>
             </form>

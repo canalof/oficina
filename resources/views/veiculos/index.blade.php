@@ -2,7 +2,10 @@
     <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h1>Veículos</h1>
         @can('veiculos.editar')<a href="{{ route('exportar.cadastro', 'veiculos') }}" class="btn ml-auto">Exportar</a>@endcan
-        @can('veiculos.editar')<a href="{{ route('recepcao') }}" class="btn-primario">Cadastrar pela placa</a>@endcan
+        @can('veiculos.editar')
+            <a href="{{ route('recepcao') }}" class="btn">Buscar pela placa</a>
+            <a href="{{ route('veiculos.create') }}" class="btn-primario">Novo veículo</a>
+        @endcan
     </div>
 
     <form class="mb-4 flex gap-2" role="search">

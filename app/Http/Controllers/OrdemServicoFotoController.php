@@ -67,7 +67,9 @@ class OrdemServicoFotoController extends Controller
         abort_unless($foto->ordem_servico_id === $os->id && Storage::disk('local')->exists($foto->caminho), 404);
 
         return Storage::disk('local')->response($foto->caminho, null, [
-            'Cache-Control' => 'private, max-age=86400',
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'Referrer-Policy' => 'no-referrer',
+            'X-Robots-Tag' => 'noindex, nofollow',
             'X-Content-Type-Options' => 'nosniff',
         ]);
     }

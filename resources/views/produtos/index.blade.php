@@ -34,6 +34,7 @@
             <option value="negativo" @selected($filtro === 'negativo')>Estoque negativo</option>
         </select>
         <button class="btn">Buscar</button>
+        <x-leitor-barras campo="busca" />
         @if ($busca || $filtro)<a href="{{ route('produtos.index') }}" class="btn">Limpar</a>@endif
     </form>
 

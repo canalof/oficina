@@ -12,6 +12,45 @@
     <main class="mx-auto max-w-2xl px-4 py-6">
         <h1 class="mb-1 text-xl">Olá, {{ explode(' ', trim($cliente->nome))[0] }}!</h1>
         <p class="mb-6 text-suave">Aqui ficam os serviços feitos nos seus carros, as garantias e as próximas revisões.</p>
+        @include('partials.flash')
+
+        @if ($cliente->veiculos->isNotEmpty())
+            <section class="card card-corpo mb-5 space-y-3">
+                <h2>Solicitar agendamento</h2>
+                <p class="text-sm text-suave">Informe sua preferência. A oficina vai responder por aqui.</p>
+                <form method="post" action="{{ route('portal.solicitar', request()->route('token')) }}" class="space-y-3">
+                    @csrf
+                    <label class="campo"><span>Veículo</span><select class="input" name="veiculo_id" required>
+                        @foreach ($cliente->veiculos as $veiculo)<option value="{{ $veiculo->id }}">{{ $veiculo->placaFormatada() }} · {{ $veiculo->descricao() }}</option>@endforeach
+                    </select></label>
+                    <x-campo nome="preferencia" rotulo="Dia e hora de preferência" tipo="datetime-local" required />
+                    <x-campo nome="servico" rotulo="Serviço ou problema percebido" maxlength="200" required />
+                    @error('veiculo_id')<p class="erro-msg">{{ $message }}</p>@enderror
+                    <button class="btn-primario">Enviar solicitação</button>
+                </form>
+                @foreach ($solicitacoes as $pedido)
+                    <div class="border-t border-linha pt-2 text-sm">
+                        {{ $pedido->veiculo?->placaFormatada() }} · {{ $pedido->servico }} ·
+                        @if ($pedido->status === 'pendente')
+                            Aguardando resposta para {{ $pedido->preferencia->format('d/m/Y H:i') }}
+                        @elseif ($pedido->status === 'confirmada' && $pedido->agendamento && ! in_array($pedido->agendamento->status, ['cancelado', 'faltou'], true))
+                            Confirmado para {{ $pedido->agendamento->inicio->format('d/m/Y H:i') }}
+                        @elseif ($pedido->status === 'recusada')
+                            Solicitação recusada
+                        @elseif ($pedido->status === 'proposta' && $pedido->agendamento?->status === 'proposto' && $pedido->agendamento->inicio->isFuture())
+                            Horário proposto {{ $pedido->agendamento->inicio->format('d/m/Y H:i') }}
+                            <form class="mt-2 flex gap-2" method="post" action="{{ route('portal.proposta.responder', [request()->route('token'), $pedido]) }}">
+                                @csrf
+                                <button class="btn-primario btn-sm" name="decisao" value="aceitar">Aceitar horário</button>
+                                <button class="btn btn-sm" name="decisao" value="recusar">Recusar horário</button>
+                            </form>
+                        @else
+                            Agendamento encerrado
+                        @endif
+                    </div>
+                @endforeach
+            </section>
+        @endif
 
         @if ($lembretes->isNotEmpty())
             <section class="card card-corpo mb-5">
@@ -36,6 +75,12 @@
                         </div>
                         @if ($o->itens->where('situacao', 'pendente')->isNotEmpty() && $o->linkValido())
                             <a href="{{ route('orcamento.ver', $o->token) }}" class="btn-primario btn-sm mt-2">Ver e aprovar orçamento</a>
+                        @endif
+                        @if ($o->laudo)
+                            <details class="mt-3 rounded border border-linha p-3">
+                                <summary class="cursor-pointer font-medium">Laudo de alinhamento e pneus</summary>
+                                @include('os._laudo-medicoes', ['laudo' => $o->laudo])
+                            </details>
                         @endif
                     </div>
                 @empty

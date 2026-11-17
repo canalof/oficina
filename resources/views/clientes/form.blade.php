@@ -47,8 +47,13 @@
             <label class="campo"><span>Observações</span><textarea name="observacoes" rows="3" class="input">{{ old('observacoes', $cliente->observacoes) }}</textarea></label>
         </section>
 
-        <div class="flex gap-3">
+        <div class="flex flex-wrap gap-3">
             <button class="btn-primario px-6">{{ $voltarPlaca ? 'Salvar e seguir para o carro' : 'Salvar cliente' }}</button>
+            @if (! $cliente->exists && ! $voltarPlaca)
+                @can('veiculos.editar')
+                    <button class="btn" name="continuar_veiculo" value="1">Salvar e cadastrar veículo</button>
+                @endcan
+            @endif
             <a href="{{ $cliente->exists ? route('clientes.show', $cliente) : route('clientes.index') }}" class="btn">Cancelar</a>
         </div>
     </form>

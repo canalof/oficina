@@ -19,6 +19,7 @@ class AssinaturaController extends Controller
             'planos' => Plano::where('ativo', true)->orderBy('ordem')->get(),
             'faturas' => FaturaPlataforma::latest('vencimento')->limit(24)->get(),
             'pode' => $request->user()->can('empresa.configurar'),
+            'cobrancaManual' => $this->cobrancaManual(),
             'usuarios' => $empresa->usuarios()->where('ativo', true)->count(),
         ]);
     }
@@ -26,6 +27,9 @@ class AssinaturaController extends Controller
     public function assinar(Request $request, Assinaturas $assinaturas)
     {
         $this->authorize('empresa.configurar');
+        if ($this->cobrancaManual()) {
+            return back()->with('erro', 'Solicite a cobrança ao administrador do TORQUE.');
+        }
         $plano = Plano::where('slug', $request->input('plano'))->where('ativo', true)->firstOrFail();
         try {
             $assinaturas->assinar($request->user()->empresa, $plano, $request->user()->email);
@@ -36,6 +40,11 @@ class AssinaturaController extends Controller
 
         return back()->with('ok', $empresa->assinatura_status === 'ativa'
             ? 'Plano '.$plano->nome.' ativo.'
-            : 'Assinatura do plano '.$plano->nome.' criada. A fatura aparece aqui em instantes e também chega no seu e-mail.');
+            : 'Assinatura do plano '.$plano->nome.' criada. Consulte a fatura nesta tela em instantes.');
+    }
+
+    private function cobrancaManual(): bool
+    {
+        return app()->isProduction() && config('cobranca.provedor') === 'demonstracao';
     }
 }

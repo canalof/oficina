@@ -62,10 +62,10 @@ class User extends Authenticatable
         return $this->dois_fatores_ativo_em !== null && $this->dois_fatores_segredo;
     }
 
-    /** Admin da plataforma e dono precisam de verificação em duas etapas. */
+    /** Administradores precisam de 2FA, salvo a conta dispensada na configuração. */
     public function exigeDoisFatores(): bool
     {
-        return (bool) $this->admin_plataforma;
+        return $this->admin_plataforma && $this->email !== config('app.admin_sem_2fa');
     }
 
     public static function daEmpresaAtual()

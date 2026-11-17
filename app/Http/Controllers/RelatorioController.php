@@ -17,7 +17,7 @@ class RelatorioController extends Controller
     {
         $this->authorize('financeiro.ver');
         $m = (string) $request->input('mes', now()->format('Y-m'));
-        $ini = preg_match('/^\d{4}-\d{2}$/', $m) ? Carbon::createFromFormat('Y-m-d', $m.'-01')->startOfDay() : now()->startOfMonth();
+        $ini = preg_match('/^(?!0000)\d{4}-(?:0[1-9]|1[0-2])$/D', $m) ? Carbon::createFromFormat('Y-m-d', $m.'-01')->startOfDay() : now()->startOfMonth();
         $fim = $ini->copy()->endOfMonth();
 
         $entregues = OrdemServico::where('status', StatusOs::Entregue->value)->whereBetween('entregue_em', [$ini, $fim]);

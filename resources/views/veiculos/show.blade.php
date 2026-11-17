@@ -10,6 +10,17 @@
         @can('os.editar')<a href="{{ route('os.create', ['veiculo_id' => $veiculo->id]) }}" class="btn-primario">Abrir OS</a>@endcan
     </div>
 
+    @if ($trocasOleo->isNotEmpty())
+        <section class="card card-corpo mb-5">
+            <h2 class="mb-2">Histórico de troca de óleo</h2>
+            @foreach ($trocasOleo as $ordem)
+                @php $ficha = $ordem->trocaOleo; @endphp
+                <p class="border-t border-linha py-2">{{ $ficha->realizada_em->format('d/m/Y') }} · {{ $ficha->especificacao }} · {{ $ficha->litros }} L · {{ $ficha->filtro ?: 'Filtro não informado' }} · {{ number_format($ficha->km, 0, ',', '.') }} km
+                    @can('os.ver')<a class="underline" href="{{ route('os.show', $ordem) }}#troca-oleo">OS {{ $ordem->numeroFormatado() }}</a>@endcan
+                </p>
+            @endforeach
+        </section>
+    @endif
     <div class="grid gap-6 lg:grid-cols-[1.3fr_1fr] [&>*]:min-w-0">
         <section class="card card-corpo">
             <h2 class="mb-4">Dados do veículo</h2>

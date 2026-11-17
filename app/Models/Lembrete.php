@@ -11,7 +11,7 @@ class Lembrete extends Model
 {
     use PertenceAEmpresa;
 
-    protected $fillable = ['veiculo_id', 'cliente_id', 'ordem_servico_id', 'descricao', 'data_prevista', 'km_previsto', 'status', 'enviado_em'];
+    protected $fillable = ['veiculo_id', 'cliente_id', 'ordem_servico_id', 'inspecao_id', 'descricao', 'data_prevista', 'km_previsto', 'status', 'enviado_em'];
 
     protected function casts(): array
     {

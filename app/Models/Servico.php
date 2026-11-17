@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\Auditavel;
 use App\Models\Concerns\PertenceAEmpresa;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /** Catálogo de serviços da oficina, com preço padrão. */
@@ -12,7 +13,12 @@ class Servico extends Model
 {
     use Auditavel, PertenceAEmpresa, SoftDeletes;
 
-    protected $fillable = ['nome', 'preco_centavos', 'tempo_minutos', 'garantia_dias', 'revisao_meses', 'revisao_km', 'ativo'];
+    protected $fillable = ['nome', 'preco_centavos', 'tempo_minutos', 'garantia_dias', 'revisao_meses', 'revisao_km', 'ativo', 'categoria_servico_id'];
+
+    public function categoria(): BelongsTo
+    {
+        return $this->belongsTo(CategoriaServico::class, 'categoria_servico_id');
+    }
 
     protected function casts(): array
     {

@@ -21,14 +21,22 @@
 
         <section class="card card-corpo">
             <h2 class="mb-4">Entrada do carro</h2>
-            <label class="campo mb-4 max-w-md"><span>Cliente</span>
-                <select name="cliente_id" class="input">
-                    <option value="">Sem cliente</option>
-                    @foreach ($clientes as $c)
-                        <option value="{{ $c->id }}" @selected((int) old('cliente_id', $os->cliente_id) === $c->id)>{{ $c->nome }}{{ $c->id === $veiculo->cliente_id ? ' (dono do carro)' : '' }}</option>
-                    @endforeach
-                </select>
-            </label>
+            @if ($editando)
+                <div class="campo mb-4 max-w-md">
+                    <span>Cliente desta OS</span>
+                    <div class="input" aria-label="Cliente histórico da OS">{{ $os->cliente?->nome ?? 'Sem cliente' }}</div>
+                    <p class="text-sm text-suave">Este cliente fica preservado no histórico e nas cobranças, mesmo após transferência do veículo.</p>
+                </div>
+            @else
+                <label class="campo mb-4 max-w-md"><span>Cliente</span>
+                    <select name="cliente_id" class="input">
+                        <option value="">Sem cliente</option>
+                        @foreach ($clientes as $c)
+                            <option value="{{ $c->id }}" @selected((int) old('cliente_id', $os->cliente_id) === $c->id)>{{ $c->nome }}{{ $c->id === $veiculo->cliente_id ? ' (dono do carro)' : '' }}</option>
+                        @endforeach
+                    </select>
+                </label>
+            @endif
             @error('cliente_id')<p class="erro-msg">{{ $message }}</p>@enderror
             <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <x-campo nome="km_entrada" rotulo="Km no painel" :valor="$os->km_entrada ? number_format($os->km_entrada, 0, ',', '.') : ''" mascara="km" inputmode="numeric" :ajuda="$veiculo->km_atual ? 'Último registrado: '.number_format($veiculo->km_atual, 0, ',', '.') : null" />

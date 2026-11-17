@@ -14,8 +14,12 @@
             </label>
             <p class="-mt-2 text-xs text-suave md:col-span-6">Falta categoria ou fabricante? Cadastre em <a href="{{ route('auxiliar.index', 'categorias') }}" class="underline" target="_blank">Categorias</a> ou <a href="{{ route('auxiliar.index', 'fabricantes') }}" class="underline" target="_blank">Fabricantes</a>.</p>
             <x-campo nome="codigo" rotulo="Código interno" :valor="$produto->codigo" class="md:col-span-2" />
-            <x-campo nome="codigo_barras" rotulo="Código de barras" :valor="$produto->codigo_barras" inputmode="numeric" class="md:col-span-2" />
+            <div class="md:col-span-2">
+                <x-campo nome="codigo_barras" rotulo="Código de barras" :valor="$produto->codigo_barras" inputmode="numeric" />
+                <x-leitor-barras campo="codigo_barras" class="mt-2" />
+            </div>
             <x-campo nome="referencia_fabricante" rotulo="Referência do fabricante" :valor="$produto->referencia_fabricante" class="md:col-span-2" />
+            <x-campo nome="grupo_equivalencia" rotulo="Grupo de equivalência (mesmo código nas peças compatíveis)" :valor="$produto->grupo_equivalencia" maxlength="80" class="md:col-span-2" />
             <x-campo nome="ncm" rotulo="NCM" :valor="$produto->ncm" inputmode="numeric" maxlength="8" ajuda="Necessário para emitir nota" class="md:col-span-2" />
             <label class="campo md:col-span-2"><span>Unidade</span>
                 <select name="unidade" class="input">@foreach(Produto::UNIDADES as $u => $r)<option value="{{ $u }}" @selected(old('unidade', $produto->unidade) === $u)>{{ $u }} · {{ $r }}</option>@endforeach</select>

@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Categoria;
+use App\Models\CategoriaServico;
 use App\Models\Empresa;
 use App\Models\Loja;
 use App\Models\User;
@@ -8,6 +10,7 @@ use App\Support\Perfil;
 use App\Support\Tenant;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Str;
 
@@ -36,6 +39,8 @@ Artisan::command('torque:empresa {nome_fantasia} {email} {--cnpj=} {--nome=Respo
             'plano_id' => \App\Models\Plano::where('slug', $this->option('plano'))->value('id'),
             'assinatura_status' => 'trial', 'trial_ate' => today()->addDays(Empresa::DIAS_TRIAL),
         ]);
+        Categoria::criarPadroes($empresa->id);
+        CategoriaServico::criarPadroes($empresa->id);
         Tenant::com($empresa->id, function () use ($empresa, $email, $senha) {
             $loja = Loja::create(['nome' => 'Matriz', 'cnpj' => $empresa->cnpj]);
             User::create([
@@ -83,7 +88,9 @@ Artisan::command('torque:lembretes', function (\App\Services\WhatsApp\WhatsApp $
             $lembretes = \App\Models\Lembrete::with(['cliente', 'veiculo'])->where('status', 'pendente')
                 ->whereBetween('data_prevista', [today(), today()->addDays(7)])->get();
             foreach ($lembretes as $l) {
-                if ($l->cliente?->aceita_whatsapp && $whatsapp->enviar($empresa, $l->cliente->whatsapp ?: $l->cliente->telefone, $l->mensagem($empresa->nome_fantasia), 'lembrete', $l->id)) {
+                if ($l->cliente?->aceita_whatsapp && ! $l->cliente->trashed() && $l->veiculo && ! $l->veiculo->trashed()
+                    && (! $l->inspecao_id || $l->veiculo->cliente_id === $l->cliente->id)
+                    && $whatsapp->enviar($empresa, $l->cliente->whatsapp ?: $l->cliente->telefone, $l->mensagem($empresa->nome_fantasia), 'lembrete', $l->id)) {
                     $l->update(['status' => 'enviado', 'enviado_em' => now()]);
                     $enviados++;
                 }
@@ -188,6 +195,200 @@ Artisan::command('torque:desativar-2-etapas {email}', function () {
     return 0;
 })->purpose('Desativa a verificação em duas etapas de um usuário');
 
+Artisan::command('torque:cnh-expurgar {--empresa= : Processa apenas a empresa informada} {--apply : Executa as exclusões (sem esta opção apenas simula)} {--aplicar-limite-tecnico : Permite usar o limite técnico em empresa sem política definida}', function (\App\Services\Cnh\ExpurgoCnh $expurgo) {
+    // F-247-04/TORQUE-CNH-249: o expurgo permanece desligado por padrão. A chave
+    // CNH_EXPURGO_ATIVO=true só deve ser ligada depois da política aprovada; sem
+    // ela, nem a simulação executa.
+    if (! config('cnh.expurgo_ativo', false)) {
+        $this->line('Expurgo desativado nesta etapa (CNH_EXPURGO_ATIVO=false): nada foi expurgado.');
+
+        return 0;
+    }
+
+    $empresa = $this->option('empresa');
+    if ($empresa !== null && (! ctype_digit((string) $empresa) || ! Empresa::whereKey((int) $empresa)->exists())) {
+        $this->error("Empresa {$empresa} não encontrada. Nada foi expurgado.");
+
+        return 1;
+    }
+
+    $aplicar = (bool) $this->option('apply');
+    $resultado = $expurgo->executar(
+        $aplicar,
+        $empresa === null ? null : (int) $empresa,
+        (bool) $this->option('aplicar-limite-tecnico')
+    );
+
+    foreach ($resultado['empresas'] as $linha) {
+        $rotulo = sprintf('Empresa %d (%s)', $linha['empresa_id'], $linha['nome']);
+        if ($linha['motivo'] === 'politica_nao_definida') {
+            $this->line("{$rotulo}: política de retenção não definida; nada foi expurgado. Use --aplicar-limite-tecnico para aplicar o limite técnico de {$linha['dias']} dia(s).");
+
+            continue;
+        }
+        $this->line(sprintf(
+            '%s: retenção %d dia(s) [origem: %s]; corte %s; antigos %d (elegíveis %d, preservados %d); recentes %d; removidos %d [%s]',
+            $rotulo,
+            $linha['dias'],
+            $linha['origem'],
+            $linha['limite'],
+            $linha['antigos'],
+            $linha['elegiveis'],
+            $linha['preservados'],
+            $linha['recentes'],
+            $linha['removidos'],
+            $linha['situacao']
+        ));
+    }
+
+    if ($aplicar) {
+        $this->info("Expurgo aplicado: {$resultado['removidos']} registro(s) removido(s).");
+    } else {
+        $this->info("Expurgo em simulação: {$resultado['elegiveis']} registro(s) elegível(is); nada foi excluído. Use --apply para executar.");
+    }
+
+    return 0;
+})->purpose('Expurga evidências de consulta conforme o prazo de retenção de cada empresa');
+
+/*
+ * Autoteste do módulo CNH: ambiente, catálogo, cinco dimensões e adaptadores.
+ * Não usa rede real (preventStrayRequests) e não grava no banco.
+ */
+Artisan::command('torque:cnh-autoteste', function () {
+    $falhas = 0;
+    $checar = function (bool $ok, string $descricao) use (&$falhas) {
+        $this->line(($ok ? 'PASS  ' : 'FAIL  ').$descricao);
+        $falhas += $ok ? 0 : 1;
+    };
+
+    Http::preventStrayRequests();
+
+    $catalogo = app(\App\Services\Cnh\CatalogoCnh::class);
+    $avaliacao = app(\App\Services\Cnh\AvaliacaoCnh::class);
+    $senatran = app(\App\Services\Cnh\SenatranProvider::class);
+    $ambienteOriginal = config('cnh.ambiente');
+
+    $this->line('Ambiente configurado: '.config('cnh.ambiente'));
+    foreach (array_keys(\App\Services\Cnh\CatalogoCnh::FORNECEDORES) as $codigo) {
+        $this->line(sprintf('  %-12s %s', $codigo, $catalogo->implementado($codigo) ? 'conector implementado' : 'pendente (sem conector)'));
+    }
+    $checar($catalogo->implementado('senatran') && $catalogo->implementado('vio_serpro'), 'Catálogo marca senatran e vio_serpro como implementados');
+    $checar(! $catalogo->implementado('minha_cnh') && ! $catalogo->implementado('vio_privado'), 'Catálogo não anuncia conector inexistente');
+
+    $completo = ['categoria' => 'B', 'validade' => now()->addYear()->format('Y-m-d'), 'situacao' => 'Ativa', 'impedimentos' => 0];
+    $producao = $avaliacao->avaliar('senatran', $completo, ['ambiente' => 'producao', 'autenticidade' => 'oficial', 'categorias_veiculo' => ['B']]);
+    $checar($producao['liberacao'] === 'producao' && $producao['autenticidade'] === 'oficial' && $producao['resultado'] === 'conferido', 'SENATRAN em produção com dados completos libera a operação');
+    $homolog = $avaliacao->avaliar('senatran', $completo, ['ambiente' => 'homologacao', 'autenticidade' => 'oficial', 'categorias_veiculo' => ['B']]);
+    $checar($homolog['liberacao'] === 'homologacao' && $homolog['autenticidade'] === 'oficial_homologacao', 'SENATRAN em homologação não libera a operação');
+    $vencida = $avaliacao->avaliar('senatran', ['categoria' => 'B', 'validade' => now()->subDay()->format('Y-m-d'), 'situacao' => 'Ativa', 'impedimentos' => 0], ['ambiente' => 'producao', 'categorias_veiculo' => ['B']]);
+    $checar($vencida['resultado'] === 'divergente' && $vencida['liberacao'] === 'nao_liberado', 'Validade vencida gera divergência e bloqueia');
+    $categoria = $avaliacao->avaliar('senatran', $completo, ['ambiente' => 'producao', 'categorias_veiculo' => ['C']]);
+    $checar($categoria['resultado'] === 'divergente', 'Categoria incompatível gera divergência');
+    $impedido = $avaliacao->avaliar('senatran', ['categoria' => 'B', 'validade' => now()->addYear()->format('Y-m-d'), 'situacao' => 'Ativa', 'impedimentos' => 2], ['ambiente' => 'producao']);
+    $checar($impedido['resultado'] === 'divergente', 'Impedimentos geram divergência');
+    $documental = $avaliacao->avaliar('vio_serpro', ['documento_teste' => 'CNH Digital'], ['ambiente' => 'homologacao']);
+    $checar($documental['autenticidade'] === 'documental' && $documental['liberacao'] !== 'producao', 'Leitura documental não é tratada como autenticidade oficial');
+
+    // F-247-01: a oficialidade vem do adaptador, nunca do nome do fornecedor.
+    $checar(app(\App\Services\Cnh\SenatranByok::class)->autenticidade() === 'oficial', 'Adaptador SENATRAN declara autenticidade oficial');
+    $checar(app(\App\Services\Cnh\VioByok::class)->autenticidade() === 'documental', 'Adaptador Vio declara autenticidade documental');
+    $checar($catalogo->fonte('senatran') === 'oficial', 'Catálogo reconhece somente SENATRAN como fonte oficial');
+    $checar($catalogo->fonte('minha_cnh') === 'documental' && $catalogo->fonte('vio_privado') === 'documental', 'Fornecedores sem conector nunca são oficiais');
+    $minhaCnh = $avaliacao->avaliar('minha_cnh', $completo, ['ambiente' => 'producao', 'autenticidade' => 'oficial', 'categorias_veiculo' => ['B']]);
+    $checar($minhaCnh['autenticidade'] !== 'oficial' && $minhaCnh['liberacao'] !== 'producao', 'minha_cnh não consegue declarar autenticidade oficial');
+    $vioPrivado = $avaliacao->avaliar('vio_privado', ['documento_teste' => 'CNH Digital'], ['ambiente' => 'producao', 'autenticidade' => 'oficial']);
+    $checar($vioPrivado['autenticidade'] === 'documental' && $vioPrivado['liberacao'] !== 'producao', 'vio_privado não consegue declarar autenticidade oficial');
+    $vioOficial = $avaliacao->avaliar('vio_serpro', ['documento_teste' => 'CNH Digital'], ['ambiente' => 'producao', 'autenticidade' => 'oficial']);
+    $checar($vioOficial['autenticidade'] === 'documental' && $vioOficial['liberacao'] !== 'producao', 'vio_serpro rebaixa declaração oficial para documental');
+    $declaracaoInvalida = $avaliacao->avaliar('senatran', $completo, ['ambiente' => 'producao', 'autenticidade' => 'oficial_falso', 'categorias_veiculo' => ['B']]);
+    $checar($declaracaoInvalida['autenticidade'] !== 'oficial' && $declaracaoInvalida['liberacao'] !== 'producao', 'Declaração de autenticidade desconhecida é fail-closed');
+    $checar(array_keys($producao['dimensoes']) === array_keys(\App\Services\Cnh\AvaliacaoCnh::DIMENSOES), 'Avaliação devolve as cinco dimensões na ordem esperada');
+
+    $urlProducao = trim((string) config('cnh.endpoints.senatran.producao'));
+    config(['cnh.ambiente' => 'producao']);
+    if ($urlProducao === '') {
+        $recusou = null;
+        try {
+            $senatran->consultar(['certificado' => '/dev/null', 'chave' => '/dev/null', 'cpf_operador' => '52998224725'], '52998224725', '12345678901');
+        } catch (\DomainException $erro) {
+            $recusou = $erro->getMessage();
+        }
+        $checar(is_string($recusou) && str_contains($recusou, 'não está configurado'), 'Sem CNH_SENATRAN_URL_PRODUCAO a consulta é recusada antes de qualquer envio');
+        $checar(Http::recorded()->count() === 0, 'Nenhuma requisição HTTP foi enviada na recusa por falta de endpoint');
+    } else {
+        $checar($senatran->endpoint('producao') === rtrim($urlProducao, '/'), 'CNH_SENATRAN_URL_PRODUCAO configurada e resolvida');
+    }
+    config(['cnh.ambiente' => $ambienteOriginal]);
+
+    $endpoint = '';
+    try {
+        $endpoint = $senatran->endpoint('homologacao');
+        $checar(true, 'Endpoint de homologação da SENATRAN resolvido: '.$endpoint);
+    } catch (\DomainException $erro) {
+        $checar(false, 'Endpoint de homologação da SENATRAN: '.$erro->getMessage());
+    }
+
+    $chave = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+    $csr = $chave ? openssl_csr_new(['commonName' => 'autoteste.torque.local'], $chave, ['digest_alg' => 'sha256']) : false;
+    $cert = $csr ? openssl_csr_sign($csr, null, $chave, 1, ['digest_alg' => 'sha256']) : false;
+    $pemCert = '';
+    $pemKey = '';
+    $gerou = $cert && openssl_x509_export($cert, $pemCert) && openssl_pkey_export($chave, $pemKey);
+    $checar((bool) $gerou, 'Certificado e chave de teste gerados em memória');
+
+    if ($gerou && $endpoint !== '') {
+        Http::fake([$endpoint.'/v1/condutores/*' => Http::response(['condutores' => [[
+            'categoriaAtual' => 'B', 'dataValidadeCnh' => now()->addYear()->format('Y-m-d'),
+            'descricaoSituacaoCnh' => 'Ativa', 'quantidadeOcorrenciasImpedimentos' => 0,
+        ]]], 200)]);
+        try {
+            $bruto = app(\App\Services\Cnh\SenatranByok::class)->consultar(
+                ['certificado_pem' => $pemCert, 'chave_pem' => $pemKey, 'cpf_operador' => '52998224725'],
+                ['cpf' => '52998224725', 'registro' => '12345678901']
+            );
+            $av = $avaliacao->avaliar('senatran', $bruto, ['ambiente' => $bruto['ambiente'] ?? null, 'categorias_veiculo' => ['B']]);
+            $checar($bruto['categoria'] === 'B' && $bruto['ambiente'] === 'homologacao', 'Adaptador SENATRAN interpreta a resposta simulada');
+            $checar($av['resultado'] === 'conferido' && $av['liberacao'] === 'homologacao', 'Resposta simulada confere, mas continua sem liberar em homologação');
+        } catch (\Throwable $erro) {
+            $checar(false, 'Adaptador SENATRAN: '.get_class($erro).' - '.$erro->getMessage());
+        }
+    }
+
+    $vioBase = '';
+    try {
+        $vioBase = app(\App\Services\Cnh\VioByok::class)->baseUrl('homologacao');
+        $checar(true, 'Endpoint do SERPRO/Vio resolvido: '.$vioBase);
+    } catch (\DomainException $erro) {
+        $checar(false, 'Endpoint do SERPRO/Vio: '.$erro->getMessage());
+    }
+    if ($vioBase !== '') {
+        Http::fake([
+            $vioBase.(string) config('cnh.endpoints.vio.token', '/token') => Http::response(['access_token' => 'token-de-teste'], 200),
+            $vioBase.(string) config('cnh.endpoints.vio.decode', '/viodec-trial/v1/decode') => Http::response(['template' => ['name' => 'CNH Digital']], 200),
+        ]);
+        try {
+            $brutoVio = app(\App\Services\Cnh\VioByok::class)->consultar(['consumer_key' => 'chave', 'consumer_secret' => 'segredo'], ['qr' => 'BINARIO-DE-TESTE']);
+            $avVio = $avaliacao->avaliar('vio_serpro', $brutoVio, ['ambiente' => $brutoVio['ambiente'] ?? null]);
+            $checar($brutoVio['documento_teste'] === 'CNH Digital', 'Adaptador Vio autentica e decodifica com resposta simulada');
+            $checar($avVio['autenticidade'] === 'documental' && $avVio['liberacao'] !== 'producao', 'Vio nunca libera operação de produção');
+        } catch (\Throwable $erro) {
+            $checar(false, 'Adaptador Vio: '.get_class($erro).' - '.$erro->getMessage());
+        }
+    }
+
+    config(['cnh.ambiente' => $ambienteOriginal]);
+    $this->newLine();
+    if ($falhas === 0) {
+        $this->info('AUTOTESTE CNH: PASS - nenhuma consulta real, nenhuma escrita no banco.');
+
+        return 0;
+    }
+    $this->error('AUTOTESTE CNH: '.$falhas.' falha(s).');
+
+    return 1;
+})->purpose('Autoteste do módulo CNH: ambiente, catálogo, dimensões e adaptadores (sem rede real e sem escrita no banco)');
+
+Schedule::command('torque:cnh-expurgar')->dailyAt('03:25')->withoutOverlapping();
 Schedule::command('torque:assinaturas')->dailyAt('03:10')->withoutOverlapping();
 Schedule::command('torque:backup')->dailyAt('02:30')->withoutOverlapping();
 Schedule::command('torque:notas')->everyFiveMinutes()->withoutOverlapping();

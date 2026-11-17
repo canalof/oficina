@@ -42,6 +42,12 @@ enum Perfil: string
 
     public function pode(string $permissao): bool
     {
+        if (in_array($permissao, ['mobilidade.ver', 'mobilidade.editar', 'mobilidade.excecao'], true)) {
+            return match ($permissao) {
+                'mobilidade.ver', 'mobilidade.editar' => in_array($this, [self::Dono, self::Gerente, self::Consultor], true),
+                'mobilidade.excecao' => in_array($this, [self::Dono, self::Gerente], true),
+            };
+        }
         $p = $this->permissoes();
 
         return in_array('*', $p, true) || in_array($permissao, $p, true);
@@ -51,6 +57,7 @@ enum Perfil: string
     public static function todasPermissoes(): array
     {
         return [
+            'mobilidade.ver', 'mobilidade.editar', 'mobilidade.excecao',
             'clientes.ver', 'clientes.editar', 'clientes.excluir',
             'veiculos.ver', 'veiculos.editar', 'veiculos.excluir',
             'placa.consultar', 'usuarios.gerenciar', 'empresa.configurar', 'auditoria.ver',

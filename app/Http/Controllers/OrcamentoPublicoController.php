@@ -20,14 +20,14 @@ class OrcamentoPublicoController extends Controller
     {
         $os = $this->os($token);
         if (! $os->linkValido()) {
-            return response()->view('orcamento.expirado', ['empresa' => Empresa::find($os->empresa_id)], 410)->header('X-Robots-Tag', 'noindex, nofollow');
+            return response()->view('orcamento.expirado', ['empresa' => Empresa::find($os->empresa_id)], 410)->header('X-Robots-Tag', 'noindex, nofollow')->header('Referrer-Policy', 'no-referrer')->header('Cache-Control', 'private, no-store, max-age=0');
         }
-        $os->load(['veiculo', 'cliente', 'itens', 'fotos']);
+        $os->load(['veiculo', 'cliente', 'itens', 'fotos', 'inspecoes']);
 
         return response()->view('orcamento.ver', [
             'os' => $os,
             'empresa' => Empresa::find($os->empresa_id),
-        ])->header('X-Robots-Tag', 'noindex, nofollow')->header('Referrer-Policy', 'no-referrer');
+        ])->header('X-Robots-Tag', 'noindex, nofollow')->header('Referrer-Policy', 'no-referrer')->header('Cache-Control', 'private, no-store, max-age=0');
     }
 
     public function aprovar(Request $request, string $token)
@@ -50,7 +50,7 @@ class OrcamentoPublicoController extends Controller
         }
 
         try {
-            $os->aprovar($ids, trim($dados['nome']).' (pelo link)', $request->ip(), 'link', $request->userAgent(), (int) $dados['versao']);
+            $os->aprovar($ids, trim($dados['nome']).' (pelo link)', $request->ip(), 'link', $request->userAgent(), (int) $dados['versao'], $token);
         } catch (DomainException $e) {
             return back()->with('erro', $e->getMessage());
         }

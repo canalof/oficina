@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CategoriaServico;
 use App\Models\Servico;
 use App\Support\Dinheiro;
 use App\Support\Tenant;
@@ -17,7 +18,8 @@ class ServicoController extends Controller
         $busca = trim((string) $request->query('busca'));
 
         return view('servicos.index', [
-            'servicos' => Servico::when($busca, fn ($q) => $q->where('nome', 'like', '%'.$busca.'%'))->orderBy('nome')->paginate(50)->withQueryString(),
+            'servicos' => Servico::with('categoria')->when($busca, fn ($q) => $q->where('nome', 'like', '%'.$busca.'%'))->orderBy('nome')->paginate(50)->withQueryString(),
+            'categorias' => CategoriaServico::orderBy('nome')->get(),
             'busca' => $busca,
             'editando' => $request->query('editar') ? Servico::find($request->query('editar')) : null,
         ]);
@@ -52,6 +54,7 @@ class ServicoController extends Controller
         $request->merge(['preco_centavos' => Dinheiro::paraCentavos($request->input('preco'))]);
         $dados = $request->validate([
             'nome' => ['required', 'string', 'max:120', Rule::unique('servicos', 'nome')->where('empresa_id', Tenant::id())->whereNull('deleted_at')->ignore($servico?->id)],
+            'categoria_servico_id' => ['nullable', Rule::exists('categorias_servico', 'id')->where('empresa_id', Tenant::id())],
             'preco_centavos' => ['required', 'integer', 'min:0', 'max:99999999'],
             'tempo_minutos' => ['nullable', 'integer', 'min:1', 'max:6000'],
             'garantia_dias' => ['nullable', 'integer', 'min:0', 'max:3650'],

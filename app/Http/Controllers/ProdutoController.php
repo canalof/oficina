@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Produto;
 use App\Support\Dinheiro;
+use App\Support\MovimentacaoManual;
 use App\Support\Tenant;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ProdutoController extends Controller
@@ -47,12 +49,26 @@ class ProdutoController extends Controller
         if (! $request->boolean('confirmar_duplicado') && ($parecidos = \App\Support\Duplicados::produtos($dados))->isNotEmpty()) {
             return back()->withInput()->with('duplicados', $parecidos->map(fn ($p) => ['nome' => $p->nome, 'url' => route('produtos.show', $p), 'info' => null])->all());
         }
-        $inicial = (float) str_replace(',', '.', (string) $request->input('estoque_inicial'));
-        $custo = $dados['custo_centavos'];
-        $p = Produto::create($dados);
-        if ($inicial > 0) {
-            $p->movimentar($inicial, 'entrada', 'manual', null, $custo, 'Estoque inicial');
-        }
+        // Estoque inicial não faz parte do cadastro simples: precisa ser validado
+        // antes de criar o produto, com a mesma precisão (3 casas) do saldo.
+        $request->merge([
+            'estoque_inicial' => str_replace(',', '.', trim((string) $request->input('estoque_inicial'))),
+        ]);
+        $inicialValidado = $request->validate([
+            'estoque_inicial' => ['nullable', 'numeric', 'min:0', 'max:9999999', 'regex:/^\d+(?:\.\d{1,3})?$/'],
+        ]);
+        $inicial = (float) ($inicialValidado['estoque_inicial'] ?? 0);
+
+        // Produto e primeira movimentação formam uma operação atômica.
+        // Uma exceção ao registrar saldo/custo não deixa produto parcial.
+        $p = DB::transaction(function () use ($dados, $inicial) {
+            $produto = Produto::create($dados);
+            if ($inicial > 0) {
+                $produto->movimentar($inicial, 'entrada', 'manual', null, $dados['custo_centavos'], 'Estoque inicial');
+            }
+
+            return $produto;
+        });
 
         return redirect()->route('produtos.show', $p)->with('ok', $p->nome.' cadastrado.');
     }
@@ -65,7 +81,12 @@ class ProdutoController extends Controller
             ->latest('id')->limit(100)->get()
             ->filter(fn ($a) => array_intersect(array_keys($a->depois ?? []), ['preco_centavos', 'custo_centavos']))->take(15);
 
-        return view('produtos.show', ['produto' => $produto->load(['categoria', 'fabricante']), 'movimentos' => $produto->movimentos()->with('user')->limit(60)->get(), 'precos' => $precos]);
+        $similares = $produto->grupo_equivalencia
+            ? Produto::where('grupo_equivalencia', $produto->grupo_equivalencia)->whereKeyNot($produto->id)
+                ->where('ativo', true)->where('unidade', $produto->unidade)->orderByDesc('estoque')->limit(30)->get()
+            : collect();
+
+        return view('produtos.show', ['produto' => $produto->load(['categoria', 'fabricante']), 'movimentos' => $produto->movimentos()->with('user')->limit(60)->get(), 'precos' => $precos, 'similares' => $similares]);
     }
 
     public function edit(Produto $produto)
@@ -104,30 +125,45 @@ class ProdutoController extends Controller
         ]);
         $dados = $request->validate([
             'tipo' => ['required', 'in:entrada,perda,devolucao_cliente,devolucao_fornecedor,contagem'],
-            'quantidade' => ['required', 'numeric', 'min:0', 'max:9999999'],
+            'quantidade' => ['required', 'numeric', 'min:0', 'max:9999999', 'regex:/^\d+(?:\.\d{1,3})?$/'],
             'custo' => ['nullable', 'integer', 'min:0'],
             'observacao' => ['required', 'string', 'min:3', 'max:255'],
         ], ['observacao.required' => 'Escreva o motivo. Ele fica no histórico do produto.'], ['quantidade' => 'quantidade', 'observacao' => 'motivo']);
         $q = (float) $dados['quantidade'];
         $motivo = $dados['observacao'];
 
-        if ($dados['tipo'] === 'contagem') {
-            $dif = round($q - (float) $produto->estoque, 3);
-            if ($dif == 0) {
-                return back()->with('ok', 'A contagem bate com o sistema.');
+        try {
+            if ($dados['tipo'] === 'contagem') {
+                // O alvo e o saldo atual devem ser lidos sob o mesmo bloqueio.
+                $alterado = DB::transaction(function () use ($produto, $q, $motivo) {
+                    $atual = Produto::whereKey($produto->getKey())->lockForUpdate()->firstOrFail();
+                    $dif = round($q - (float) $atual->estoque, 3);
+                    if ($dif == 0.0) {
+                        return false;
+                    }
+                    $atual->movimentar($dif, 'ajuste', 'ajuste', null, null, 'Contagem: '.Produto::formatarQtd($q).' · '.$motivo);
+                    $produto->setRawAttributes($atual->getAttributes(), true);
+
+                    return true;
+                });
+                if (! $alterado) {
+                    return back()->with('ok', 'A contagem bate com o sistema.');
+                }
+            } else {
+                if ($q <= 0) {
+                    return back()->withErrors(['quantidade' => 'Informe uma quantidade maior que zero.'])->withInput();
+                }
+                // A regra pura mantém tipo físico e origem separados; assim
+                // devoluções nunca tentam persistir o tipo inválido 'devolucao'.
+                [$quantidade, $tipo, $origem, $custo] = MovimentacaoManual::preparar(
+                    $dados['tipo'], $q, $dados['custo'] ?? null, $produto->custo_centavos,
+                );
+                $produto->movimentar($quantidade, $tipo, $origem, null, $custo, $motivo);
             }
-            $produto->movimentar($dif, 'ajuste', 'ajuste', null, null, 'Contagem: '.Produto::formatarQtd($q).' · '.$motivo);
-        } else {
-            if ($q <= 0) {
-                return back()->withErrors(['quantidade' => 'Informe uma quantidade maior que zero.'])->withInput();
-            }
-            [$sinal, $tipo, $origem, $custo] = match ($dados['tipo']) {
-                'entrada' => [1, 'entrada', 'manual', $dados['custo'] ?? $produto->custo_centavos],
-                'devolucao_cliente' => [1, 'devolucao', 'devolucao_cliente', null],
-                'devolucao_fornecedor' => [-1, 'devolucao', 'devolucao_fornecedor', null],
-                default => [-1, 'saida', 'perda', null],
-            };
-            $produto->movimentar($sinal * $q, $tipo, $origem, null, $custo, $motivo);
+        } catch (\DomainException $e) {
+            // Uma devolução, perda ou contagem sem saldo suficiente é erro
+            // de operação, não falha interna (HTTP 500).
+            return back()->withErrors(['quantidade' => $e->getMessage()])->withInput();
         }
 
         return back()->with('ok', 'Estoque atualizado: '.$produto->estoqueFormatado().'.');
@@ -156,6 +192,7 @@ class ProdutoController extends Controller
             'codigo' => ['nullable', 'string', 'max:30', Rule::unique('produtos', 'codigo')->where('empresa_id', Tenant::id())->whereNull('deleted_at')->ignore($produto?->id)],
             'codigo_barras' => ['nullable', 'digits_between:8,14'],
             'referencia_fabricante' => ['nullable', 'string', 'max:40'],
+            'grupo_equivalencia' => ['nullable', 'string', 'max:80'],
             'categoria_id' => ['nullable', Rule::exists('categorias', 'id')->where('empresa_id', Tenant::id())],
             'fabricante_id' => ['nullable', Rule::exists('fabricantes', 'id')->where('empresa_id', Tenant::id())],
             'unidade' => ['required', Rule::in(array_keys(Produto::UNIDADES))],
@@ -163,7 +200,7 @@ class ProdutoController extends Controller
             'localizacao' => ['nullable', 'string', 'max:40'],
             'custo_centavos' => ['integer', 'min:0'],
             'preco_centavos' => ['integer', 'min:0'],
-            'estoque_minimo' => ['numeric', 'min:0'],
+            'estoque_minimo' => ['numeric', 'min:0', 'max:9999999', 'regex:/^\d+(?:\.\d{1,3})?$/'],
         ], ['codigo.unique' => 'Já existe um produto com este código.'], ['codigo_barras' => 'código de barras', 'ncm' => 'NCM']);
         $dados['ativo'] = $request->boolean('ativo', true);
 

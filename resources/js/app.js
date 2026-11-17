@@ -1,4 +1,97 @@
 import QRCode from 'qrcode';
+
+const documentoCnh = document.querySelector('[data-documento-cnh]');
+if (documentoCnh) {
+    const fotoCnh = documentoCnh.querySelector('input[type=file]');
+    const saidaCnh = documentoCnh.querySelector('[data-documento-resultado]');
+    fotoCnh.addEventListener('change', async () => {
+        const arquivo = fotoCnh.files[0];
+        if (!arquivo) return;
+        fotoCnh.value = '';
+        if (arquivo.size > 15 * 1024 * 1024) {
+            saidaCnh.textContent = 'Use uma foto de até 15 MB.';
+            return;
+        }
+        fotoCnh.disabled = true;
+        saidaCnh.textContent = 'Lendo o documento neste aparelho…';
+        try {
+            const { LocalDocumentReader } = await import('./local-document-reader');
+            const extraido = await new LocalDocumentReader().ler(arquivo);
+            const formulario = document.querySelector('[data-cadastro-condutor]');
+            const linhas = ['Leitura local. Autenticidade e situação atual não verificadas.'];
+            for (const [campo, rotulo] of [['cpf', 'CPF'], ['categoria', 'Categoria'], ['validade', 'Validade']]) {
+                const valor = extraido[campo];
+                const cadastro = formulario?.elements.namedItem(campo)?.value;
+                const exibido = campo === 'cpf' && valor ? '•••.•••.•••-' + valor.slice(-2) : valor;
+                const comparacao = valor && cadastro ? (valor === cadastro ? ' · coincide com o campo' : ' · diverge do campo') : '';
+                linhas.push(rotulo + ': ' + (exibido ?? 'não identificado') + comparacao);
+            }
+            linhas.push(extraido.qrEncontrado ? 'QR Code detectado. Conteúdo não enviado.' : 'QR Code não detectado.');
+            saidaCnh.textContent = linhas.join('\n');
+        } catch {
+            saidaCnh.textContent = 'Não foi possível ler a foto. Confira manualmente os dados do documento.';
+        } finally {
+            fotoCnh.disabled = false;
+        }
+    });
+}
+
+const listaModelos = document.querySelector('[data-modelos-veiculo]');
+if (listaModelos) {
+    const formulario = listaModelos.closest('form');
+    const marcaVeiculo = formulario.elements.namedItem('marca');
+    const modeloVeiculo = formulario.elements.namedItem('modelo');
+    const selecao = formulario.querySelector('[data-selecao-veiculo]');
+    const marcaSugerida = selecao.querySelector('[data-marca-sugerida]');
+    const modeloSugerido = selecao.querySelector('[data-modelo-sugerido]');
+    const catalogo = JSON.parse(listaModelos.dataset.modelosVeiculo);
+    const todos = [...new Set(Object.values(catalogo).flat())].sort();
+    const sugerirModelos = () => {
+        const marca = Object.keys(catalogo).find((nome) => nome.toLowerCase() === marcaVeiculo.value.trim().toLowerCase());
+        const modelos = marca ? catalogo[marca] : [];
+        listaModelos.replaceChildren(...(marca ? modelos : todos).map((modelo) => new Option(modelo, modelo)));
+        marcaSugerida.value = marca ?? '';
+        modeloSugerido.replaceChildren(
+            new Option(marca ? 'Escolha um modelo' : 'Escolha a marca primeiro', ''),
+            ...modelos.map((modelo) => new Option(modelo, modelo)),
+        );
+        modeloSugerido.disabled = !marca;
+        modeloSugerido.value = modelos.includes(modeloVeiculo.value) ? modeloVeiculo.value : '';
+    };
+    marcaVeiculo.addEventListener('input', sugerirModelos);
+    marcaSugerida.addEventListener('change', () => {
+        if (!marcaSugerida.value) return;
+        marcaVeiculo.value = marcaSugerida.value;
+        sugerirModelos();
+    });
+    modeloSugerido.addEventListener('change', () => {
+        if (modeloSugerido.value) modeloVeiculo.value = modeloSugerido.value;
+    });
+    modeloVeiculo.addEventListener('input', () => {
+        modeloSugerido.value = modeloVeiculo.value;
+    });
+    sugerirModelos();
+    selecao.hidden = false;
+}
+
+if ('serviceWorker' in navigator && document.querySelector('link[rel="manifest"]')) {
+    navigator.serviceWorker.register('/torque-sw.js').catch(() => {
+        // O acesso pelo navegador continua disponível se a instalação falhar.
+    });
+}
+
+const instalarTorque = document.querySelector('[data-instalar-torque]');
+if (instalarTorque) {
+    window.addEventListener('beforeinstallprompt', (evento) => {
+        evento.preventDefault();
+        instalarTorque.hidden = false;
+        instalarTorque.addEventListener('click', async () => {
+            instalarTorque.hidden = true;
+            await evento.prompt();
+        }, { once: true });
+    });
+}
+
 // Máscaras simples e utilidades das telas (sem framework)
 
 const soDigitos = (v) => (v || '').replace(/\D/g, '');
@@ -74,6 +167,34 @@ if (form) {
     const saida = document.querySelector('[data-recepcao-saida]');
     const status = document.querySelector('[data-recepcao-status]');
     const urlBusca = form.getAttribute('action');
+    const foto = form.querySelector('[data-foto-placa]');
+
+    foto?.addEventListener('change', async () => {
+        const arquivo = foto.files[0];
+        if (!arquivo) return;
+        foto.value = '';
+        if (arquivo.size > 20 * 1024 * 1024) {
+            status.textContent = 'A foto deve ter até 20 MB. Tire outra foto ou digite a placa.';
+            return;
+        }
+        foto.disabled = true;
+        status.textContent = 'Lendo a foto neste aparelho…';
+        try {
+            const { lerPlaca } = await import('./placa-ocr');
+            const placas = await lerPlaca(arquivo);
+            if (placas.length === 1) {
+                input.value = placas[0];
+                status.textContent = 'Placa lida. Confira o texto e toque em Buscar placa.';
+                input.focus();
+            } else {
+                status.textContent = 'Não foi possível identificar uma única placa. Tire outra foto mais de perto ou digite a placa.';
+            }
+        } catch {
+            status.textContent = 'Não foi possível ler a foto. Tente novamente ou digite a placa.';
+        } finally {
+            foto.disabled = false;
+        }
+    });
 
     async function buscar(placa) {
         status.textContent = 'Procurando a placa…';
@@ -101,6 +222,40 @@ if (form) {
     });
     if (input.value.length === 7) form.requestSubmit();
 }
+
+document.querySelectorAll('[data-leitor-barras]').forEach((area) => {
+    const foto = area.querySelector('[data-foto-barras]');
+    const status = area.querySelector('[data-status-barras]');
+    const campo = area.closest('form').elements.namedItem(area.dataset.leitorBarras);
+
+    foto.addEventListener('change', async () => {
+        const arquivo = foto.files[0];
+        if (!arquivo) return;
+        foto.value = '';
+        if (arquivo.size > 20 * 1024 * 1024) {
+            status.textContent = 'A foto deve ter até 20 MB.';
+            return;
+        }
+        foto.disabled = true;
+        status.textContent = 'Lendo o código neste aparelho…';
+        try {
+            const { lerCodigoBarras } = await import('./codigo-barras');
+            const codigo = await lerCodigoBarras(arquivo);
+            if (!/^\d{8,14}$/.test(codigo)) {
+                status.textContent = 'Use um código de produto com 8 a 14 dígitos.';
+                return;
+            }
+            campo.value = codigo;
+            campo.dispatchEvent(new Event('input', { bubbles: true }));
+            status.textContent = 'Código lido. Confira o campo para continuar.';
+            campo.focus();
+        } catch {
+            status.textContent = 'Não consegui ler o código. Tire outra foto de perto, sem reflexo, ou digite os números.';
+        } finally {
+            foto.disabled = false;
+        }
+    });
+});
 
 // Copiar link (orçamento para o cliente)
 document.addEventListener('click', async (e) => {
@@ -147,12 +302,16 @@ if (itemForm) {
 const orc = document.querySelector('[data-orcamento]');
 if (orc) {
     const total = orc.querySelector('[data-orcamento-total]');
+    const adicionais = orc.querySelector('[data-orcamento-adicionais]');
     const somar = () => {
-        let t = parseInt(total.dataset.base, 10) || 0;
-        orc.querySelectorAll('input[name="itens[]"]:checked').forEach((c) => { t += parseInt(c.dataset.valor, 10) || 0; });
-        total.textContent = reais(Math.max(0, t));
+        const base = parseInt(total.dataset.base, 10) || 0;
+        let selecionados = 0;
+        orc.querySelectorAll('input[name="itens[]"]:checked').forEach((c) => { selecionados += parseInt(c.dataset.valor, 10) || 0; });
+        total.textContent = reais(Math.max(0, base + selecionados));
+        if (adicionais) adicionais.textContent = reais(selecionados);
     };
     orc.addEventListener('change', somar);
+    somar();
 }
 
 // OS: receber pagamento (divide em formas, mostra quanto falta)
