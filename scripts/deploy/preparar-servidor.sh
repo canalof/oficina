@@ -28,7 +28,7 @@ echo "== 2/6 Cópia das permissões atuais (para desfazer: zcat /root/torque-per
 getfacl -R -p "$APP" 2>/dev/null | gzip > /root/torque-permissoes-antes.acl.gz
 
 echo "== 3/6 Usuário $USUARIO"
-id "$USUARIO" >/dev/null 2>&1 || adduser --disabled-password --gecos "Deploy automático (GitHub Actions)" "$USUARIO" >/dev/null
+id "$USUARIO" >/dev/null 2>&1 || adduser --disabled-password --gecos "Deploy automatico (GitHub Actions)" "$USUARIO" >/dev/null
 usermod -aG www-data "$USUARIO"
 passwd -l "$USUARIO" >/dev/null
 
@@ -57,13 +57,16 @@ echo "== 6/6 Chave SSH"
 CASA=$(getent passwd "$USUARIO" | cut -d: -f6)
 install -d -m 700 -o "$USUARIO" -g "$USUARIO" "$CASA/.ssh"
 TMP=$(mktemp -d)
+# Apaga a chave temporária mesmo se algo falhar daqui pra frente.
+trap 'shred -u "$TMP/chave" 2>/dev/null; rm -rf "$TMP"' EXIT
 ssh-keygen -q -t ed25519 -N "" -C "github-actions-torque" -f "$TMP/chave"
 # "restrict": sem terminal interativo e sem túneis. Só comandos e rsync.
 echo "restrict $(cat "$TMP/chave.pub")" > "$CASA/.ssh/authorized_keys"
 chown "$USUARIO":"$USUARIO" "$CASA/.ssh/authorized_keys"
 chmod 600 "$CASA/.ssh/authorized_keys"
 
-PORTA=$(sshd -T 2>/dev/null | awk '/^port /{print $2; exit}')
+# sshd -T falha no Ubuntu com ssh.socket (sem /run/sshd); nesse caso lê o arquivo de configuração.
+PORTA=$( { sshd -T 2>/dev/null || cat /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf 2>/dev/null; } | awk 'tolower($1)=="port"{print $2; exit}' || true)
 PORTA=${PORTA:-22}
 HOSTKEY=$(cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key.pub)
 if [ "$PORTA" = 22 ]; then NOME="$DOMINIO"; else NOME="[$DOMINIO]:$PORTA"; fi
@@ -95,5 +98,3 @@ este script de novo (gera outra e invalida a anterior).
 Para cortar o acesso do GitHub: rm $CASA/.ssh/authorized_keys
 EOF
 
-shred -u "$TMP/chave" 2>/dev/null || rm -f "$TMP/chave"
-rm -rf "$TMP"
