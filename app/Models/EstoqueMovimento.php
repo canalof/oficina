@@ -35,6 +35,7 @@ class EstoqueMovimento extends Model
             'compra' => 'Nota de compra',
             'os' => 'OS',
             'ajuste' => 'Ajuste de inventário',
+            'balanco' => 'Balanço de estoque',
             'devolucao_cliente' => 'Devolução do cliente',
             'devolucao_fornecedor' => 'Devolução ao fornecedor',
             'perda' => 'Perda / uso interno',

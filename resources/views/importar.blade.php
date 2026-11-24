@@ -17,7 +17,7 @@
         <ol class="space-y-3 text-[15px]">
             <li><strong>1.</strong> Baixe o <a href="{{ route('importar.modelo', $tipo) }}" class="font-semibold underline">modelo da planilha</a> e preencha uma linha por {{ $tipo === 'clientes' ? 'cliente' : 'produto' }}.</li>
             <li><strong>2.</strong> Colunas: <span class="text-sm text-suave">{{ implode(', ', $colunas) }}</span>. Só "nome" é obrigatória.</li>
-            <li><strong>3.</strong> {{ $tipo === 'clientes' ? 'Cliente com o mesmo CPF/CNPJ é atualizado em vez de duplicado.' : 'Produto com o mesmo código ou código de barras é atualizado (o estoque dele não muda; use a contagem). Fabricante e categoria novos são criados.' }}</li>
+            <li><strong>3.</strong> {{ $tipo === 'clientes' ? 'Cliente com o mesmo CPF/CNPJ é atualizado em vez de duplicado.' : 'Produto com o mesmo código ou código de barras é atualizado (o estoque dele não muda; para acertar quantidades use o Balanço de estoque). Fabricante e categoria novos são criados.' }}</li>
             <li><strong>4.</strong> No Excel, salve como <em>CSV (separado por vírgulas)</em> e envie aqui.</li>
         </ol>
         <form method="post" action="{{ route('importar.enviar', $tipo) }}" enctype="multipart/form-data" class="mt-5 flex flex-wrap items-end gap-3">

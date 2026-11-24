@@ -24,6 +24,7 @@
         ],
         'Estoque' => [
             ['produtos.index', 'Produtos', 'M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8', 'estoque.ver', null],
+            ['balancos.index', 'Balanço de estoque', 'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9', 'estoque.ver', null],
             ['compras.index', 'Notas de compra', 'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h5', 'estoque.ver', null],
             ['fornecedores.index', 'Fornecedores', 'M3 7h11v9H3zM14 10h4l3 3v3h-7M7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4z', 'estoque.ver', null],
             ['servicos.index', 'Catálogo de serviços', 'M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z', 'os.ver', null],

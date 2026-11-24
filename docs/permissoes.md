@@ -44,6 +44,7 @@ Gerada a partir de `App\Support\Perfil::permissoes()`. Regra: negado por padrão
 - **Corrigir item da OS** já lançado: `os.editar`, enquanto a OS aceita itens. Se a quantidade ou o valor de um item aprovado mudar, ele volta para aprovação do cliente.
 - **Categorias e fabricantes**: ver com `estoque.ver`, cadastrar/renomear/inativar com `estoque.editar`.
 - **Entrada, perda, devolução e contagem de estoque**: `estoque.editar`, sempre com motivo.
+- **Balanço de estoque**: aplicar, baixar e enviar a planilha com `estoque.editar`; ver os balanços feitos com `estoque.ver`.
 - **Importar planilha**: clientes com `clientes.editar`; produtos com `estoque.editar`.
 - **Exportar planilha** (leva a base inteira, com CPF/CNPJ): clientes com `clientes.editar`, veículos com `veiculos.editar`, produtos com `estoque.editar`, fornecedores com `compras.lancar`. Quem só consulta (ex.: mecânico) não exporta.
 

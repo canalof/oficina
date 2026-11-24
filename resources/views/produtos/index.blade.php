@@ -8,6 +8,7 @@
         <div class="flex flex-wrap gap-2">
             <a href="{{ route('auxiliar.index', 'categorias') }}" class="btn">Categorias</a>
             <a href="{{ route('auxiliar.index', 'fabricantes') }}" class="btn">Fabricantes</a>
+            @can('estoque.editar')<a href="{{ route('balancos.create') }}" class="btn">Balanço</a>@endcan
             @can('estoque.editar')<a href="{{ route('importar', 'produtos') }}" class="btn">Importar</a>@endcan
             @can('estoque.editar')<a href="{{ route('exportar.cadastro', 'produtos') }}" class="btn">Exportar</a>@endcan
             @can('compras.lancar')<a href="{{ route('compras.index') }}" class="btn">Entrada por XML</a>@endcan

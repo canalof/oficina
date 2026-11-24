@@ -50,6 +50,10 @@ O GitHub manda e-mail. Veja em **Actions** em qual passo parou:
   - voltar a versão: GitHub › reverter o commit na `main` (o deploy roda sozinho). Se a migration nova já rodou, `php artisan migrate:rollback --step=N` antes, como no `docs/runbook.md`;
   - em último caso, restaurar o backup feito no passo 3 (`docs/runbook.md`, "Restaurar backup") e `php artisan up`.
 
+## Trocar de servidor
+
+Veja `docs/troca-de-servidor.md` (scripts em `scripts/servidor/`).
+
 ## Cortar o acesso do GitHub
 
 No servidor: `rm /home/deploy/.ssh/authorized_keys`. Para voltar, rode o script de novo e troque o segredo `DEPLOY_SSH_KEY`.

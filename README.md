@@ -53,6 +53,7 @@ Este repositório está sendo construído por módulos, um Pull Request por etap
 - **Entrada pela nota de compra**: envie o XML que o fornecedor manda por e-mail. O sistema cadastra o fornecedor, reconhece os produtos (pelo código de barras ou pelo código do fornecedor, que ele aprende na primeira nota), dá entrada no estoque, atualiza o custo e lança as parcelas em contas a pagar. Nota repetida é recusada.
 - **Peças do estoque na OS**: na entrega do carro, a baixa é automática.
 - **Inventário**: entrada manual, saída (perda) e contagem da prateleira, tudo com histórico.
+- **Balanço de estoque**: conta vários produtos de uma vez (na tela, com leitor de código de barras ou por planilha) e ajusta só o que estiver diferente.
 
 ### Etapa 4: caixa e financeiro
 

@@ -167,6 +167,14 @@ Route::middleware('auth')->group(function () {
     Route::put('/modelos-os/{modelo}', [\App\Http\Controllers\ModeloOsController::class, 'update'])->name('modelos-os.update');
 
     // Estoque e compras
+    Route::prefix('estoque/balanco')->name('balancos.')->controller(\App\Http\Controllers\BalancoController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/novo', 'create')->name('create');
+        Route::post('/', 'store')->middleware('throttle:20,1')->name('store');
+        Route::get('/planilha', 'planilha')->name('planilha');
+        Route::post('/planilha', 'receberPlanilha')->middleware('throttle:10,1')->name('planilha.enviar');
+        Route::get('/{balanco}', 'show')->whereNumber('balanco')->name('show');
+    });
     Route::resource('produtos', ProdutoController::class);
     Route::post('/produtos/{produto}/movimentar', [ProdutoController::class, 'movimentar'])->name('produtos.movimentar');
     Route::resource('fornecedores', FornecedorController::class)->parameters(['fornecedores' => 'fornecedor'])->except(['show', 'destroy']);

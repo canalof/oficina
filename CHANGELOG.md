@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.7.0 — balanço de estoque e troca de servidor
+
+- **Balanço de estoque** (Estoque › Balanço de estoque, ou botão "Balanço" em Produtos): conta vários produtos de uma vez e ajusta só o que estiver diferente. Em branco não mexe.
+  - Filtro por busca, categoria e local da prateleira; diferença aparece na hora, com resumo de quantos foram contados e quantos mudam.
+  - **Leitor de código de barras**: bipa o produto e soma 1 (ou leva o cursor para digitar a quantidade).
+  - **Por planilha**: baixa a lista, conta no papel ou no Excel, preenche a coluna "contado" e envia. As quantidades aparecem na tela para conferir; só mudam ao clicar em "Aplicar balanço".
+  - Cada balanço fica registrado (nº, quem fez, contados, ajustados e diferença pelo custo) e cada ajuste entra no histórico do produto com origem "Balanço de estoque". Produto que teve venda ou entrada entre a contagem e a aplicação aparece marcado.
+  - Permissões: aplicar exige `estoque.editar`; ver os balanços, `estoque.ver`.
+- **Troca de servidor**: `scripts/servidor/exportar.sh` e `scripts/servidor/importar.sh` (Ubuntu 24.04) e o passo a passo em `docs/troca-de-servidor.md`.
+- Leitura de planilha CSV passou para `App\Support\PlanilhaCsv` (importação de cadastros e balanço usam a mesma).
+- 7 testes novos (131 no total).
+
 ## 1.6.0 — menu enxuto e módulos
 
 - **Menu:** 6 itens fixos (Início, Recepção, Ordens de serviço, Agenda, Clientes, Veículos) e grupos recolhidos (Estoque, Dinheiro, Condutores e locação, Ajustes) que abrem só quando você está dentro deles. Tutorial virou "Ajuda" no rodapé; Lembretes de revisão abrem pela Agenda.
