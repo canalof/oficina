@@ -376,3 +376,76 @@ if (tipoMov) {
     tipoMov.addEventListener('change', atualizar);
     atualizar();
 }
+
+// Balanço de estoque: diferença ao vivo, resumo e leitor de código de barras (leitor USB digita e dá Enter)
+document.querySelectorAll('[data-balanco]').forEach((form) => {
+    const linhas = [...form.querySelectorAll('[data-linha]')];
+    const resumo = form.querySelector('[data-resumo]');
+    const bipar = form.querySelector('[data-bipar]');
+    const somar = form.querySelector('[data-somar]');
+    const status = form.querySelector('[data-bipar-status]');
+    const num = (v) => {
+        const t = String(v).trim();
+        if (t === '') return null;
+        const n = Number(t.replace(',', '.'));
+        return Number.isFinite(n) && n >= 0 ? n : NaN;
+    };
+    const fmt = (n) => n.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+
+    const atualizar = (tr) => {
+        const campo = tr.querySelector('[data-contado]');
+        const saida = tr.querySelector('[data-diferenca]');
+        const q = num(campo.value);
+        saida.classList.remove('text-erro', 'text-ok', 'text-suave');
+        if (q === null) { saida.textContent = ''; return; }
+        if (Number.isNaN(q)) { saida.textContent = 'Número inválido'; saida.classList.add('text-erro'); return; }
+        const dif = Math.round((q - Number(tr.dataset.sistema)) * 1000) / 1000;
+        saida.textContent = dif === 0 ? 'Bateu' : (dif > 0 ? '+' : '−') + fmt(Math.abs(dif));
+        saida.classList.add(dif === 0 ? 'text-suave' : dif > 0 ? 'text-ok' : 'text-erro');
+    };
+    const resumir = () => {
+        let contados = 0, diferentes = 0;
+        linhas.forEach((tr) => {
+            const q = num(tr.querySelector('[data-contado]').value);
+            if (q === null || Number.isNaN(q)) return;
+            contados++;
+            if (Math.round((q - Number(tr.dataset.sistema)) * 1000) !== 0) diferentes++;
+        });
+        resumo.textContent = contados
+            ? `${contados} ${contados === 1 ? 'produto contado' : 'produtos contados'}, ${diferentes} com diferença.`
+            : 'Nenhum produto contado ainda.';
+    };
+    linhas.forEach(atualizar);
+    resumir();
+    form.addEventListener('input', (e) => {
+        const tr = e.target.closest('[data-linha]');
+        if (tr && e.target.matches('[data-contado]')) { atualizar(tr); resumir(); }
+    });
+
+    bipar?.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault(); // Enter do leitor não envia o balanço
+        const codigo = bipar.value.trim();
+        bipar.value = '';
+        if (!codigo) return;
+        const tr = linhas.find((l) => l.dataset.codigos.split('|').includes(codigo));
+        if (!tr) { status.textContent = `Código ${codigo} não está nesta lista.`; status.classList.replace('text-suave', 'text-erro'); return; }
+        status.classList.replace('text-erro', 'text-suave');
+        const campo = tr.querySelector('[data-contado]');
+        const nome = tr.querySelector('.font-semibold')?.textContent ?? '';
+        if (somar.checked) {
+            const atual = num(campo.value);
+            campo.value = fmt((Number.isNaN(atual) || atual === null ? 0 : atual) + 1).replace(/\./g, '');
+            status.textContent = `${nome}: ${campo.value}`;
+            atualizar(tr); resumir();
+            bipar.focus();
+        } else {
+            status.textContent = `${nome}: digite a quantidade.`;
+            campo.focus();
+            campo.select();
+        }
+        tr.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        tr.classList.add('bg-[#fff7df]');
+        setTimeout(() => tr.classList.remove('bg-[#fff7df]'), 1200);
+    });
+});
